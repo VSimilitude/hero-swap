@@ -35,12 +35,18 @@ skill medals and hero shards, which can then be re-applied for VS points.
   - 1,000 UR shards × 25,000 = **25,000,000 points** (+43%)
 
 ### Hero Swap Mechanics
-- Costs 1 hero swap token.
+- Costs 1 hero swap token per swap.
 - Swaps **star level** between the two heroes.
-- Swaps all **hero-specific shards** to the new hero (with type conversion).
-- When a 5-star hero (e.g., Murphy) is swapped with a 3-star hero (Sarah):
-  - Murphy drops to 3-star → skill medal cap drops → excess medals returned.
-  - Sarah rises to 5-star.
+- All **hero-specific shards move to the hero that drops to 3-star** (with type
+  conversion if needed).
+- The 3-star status + shards travel together as a "hot potato" through each
+  swap in a chain.
+- **Shard conversion on swap #1 only:** Sarah's SSR shards convert **2:1** into
+  UR shards. Every subsequent swap is **UR → UR (1:1)** — no further conversion.
+- When a 5-star hero is swapped with a 3-star hero:
+  - The 5-star hero drops to 3-star → skill medal cap drops → excess medals
+    returned. It inherits the shards.
+  - The 3-star hero rises to 5-star (done for the chain).
 
 ### Wall-of-Honor Requirement
 - Sarah needs **at least 150 Wall-of-Honor levels** before promotion.
@@ -50,23 +56,30 @@ skill medals and hero shards, which can then be re-applied for VS points.
 - Sarah (SSR) requires **2x as many shards** to reach 5 stars compared to a
   natural-UR hero, so either path yields enough shards to rebuild.
 
-## The Optimal Sequence — With Swap Token
+## The Optimal Sequence — With Swap Token(s)
 
+**Opening (always the same):**
 1. **Pre-promotion prep**: Max Sarah's skill medals. Ensure 150+ Wall-of-Honor.
 2. **Promote Sarah to UR**: She becomes 3-star UR. Medals + shards returned
    to mailbox.
-3. **Pick up returned medals + shards** from Sarah's promotion (picked up
-   together). Do this BEFORE the swap so shards participate in the conversion.
-4. **Max skill medals on the swap target hero**: Use some of Sarah's returned
-   medals if needed to ensure the target hero's medals are fully maxed before
-   swapping.
-5. **Hero swap** the target hero (5-star, maxed medals) with Sarah (3-star):
-   - Target hero drops to 3-star → skill medal cap drops → excess medals
-     returned.
-   - Sarah's SSR shards convert 2:1 to target hero's UR shards (higher value).
-   - Sarah rises to 5-star.
-6. **Re-apply** the medals returned from the swapped hero for more VS points.
-7. **Use returned UR shards** to rebuild the target hero back to 5 stars.
+3. **Pick up returned medals + shards** (picked up together). Do this BEFORE
+   any swap so shards participate in the conversion.
+
+**For each swap target (fully unrolled in the guide):**
+4. **Max skill medals on the target hero**: Use some of the returned medals if
+   needed to ensure the target's medals are fully maxed before swapping.
+5. **Hero swap** the current 3-star carrier with the target (5-star, maxed):
+   - Target drops to 3-star → skill medal cap drops → excess medals returned.
+     It inherits the shards.
+   - On swap #1: Sarah's SSR shards convert 2:1 to UR shards.
+   - On later swaps: UR → UR, 1:1 (no conversion).
+   - The carrier rises to 5-star (done).
+
+**Closing (always the same):**
+6. **Rebuild the final hero**: The last hero in the chain is still 3-star —
+   use the inherited UR shards to bring it back to 5 stars.
+7. **Apply all remaining returned skill medals** (from Sarah + every target)
+   to any heroes for VS points.
 
 ## The Sequence — Without Swap Token (0 tokens)
 
@@ -77,10 +90,13 @@ skill medals and hero shards, which can then be re-applied for VS points.
 
 ## Inputs → Guide Logic
 
-- **Swap target hero** = the hero the user plans to stop using. This is the
-  5-star natural-UR hero that will be swapped down to 3-star. Its purpose is
-  to return its skill medals (so they can be re-applied elsewhere) and to
-  convert Sarah's SSR shards into higher-value UR shards.
+- **`swap_tokens`** (int >= 0): Number of swaps available = length of the chain.
+- **`retiring_heroes`** (list, ordered): Natural-UR 5-star heroes the user is
+  done using. These get priority in the swap chain.
+- **`top_ew_heroes`** (list, ordered highest EW first): Natural-UR 5-star heroes
+  to backfill remaining swap slots. Higher-EW heroes return more medals on the
+  drop to 3-star, so ordering matters.
+- **Target list**: `dedupe(retiring_heroes + top_ew_heroes)[:swap_tokens]`
 - **Swap tokens = 0**: Generate the short sequence (promote + re-apply only).
-- **Swap tokens >= 1**: Generate the full sequence with swap.
-- Any natural-UR 5-star hero can serve as the swap target.
+- **Swap tokens >= 1**: Generate the full chain. All targets must be natural-UR
+  5-star heroes. Every hero in the chain ends at 5-star.

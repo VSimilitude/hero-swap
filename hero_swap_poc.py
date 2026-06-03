@@ -143,8 +143,8 @@ def generate_guide(
     )
     applied_from = ", ".join(["Sarah"] + targets)
     step(
-        f"Apply all returned skill medals (from {applied_from}) to any heroes "
-        f"you like for VS points."
+        f"Apply all remaining returned skill medals (from {applied_from}) to "
+        f"any heroes you like for VS points."
     )
  
     if dropped:
@@ -204,7 +204,7 @@ def _self_test() -> None:
     assert "UR -> UR, 1:1" in out
     assert "Rebuild Gordon" in out
     # 3 opening + 2 swaps*2 + 2 closing = 9 numbered steps
-    assert "9. Apply all returned skill medals" in out
+    assert "9. Apply all remaining returned skill medals" in out
  
     # 0-token case
     zero = generate_guide(0)
