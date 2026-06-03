@@ -23,6 +23,12 @@ label {
     margin-top: 0.5rem;
 }
 
+.input-hint {
+    color: #666;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
 input[type="number"],
 input[type="text"] {
     padding: 0.5rem;
