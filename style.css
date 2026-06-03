@@ -38,6 +38,17 @@ input[type="text"] {
     max-width: 400px;
 }
 
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+}
+
+.checkbox-row label {
+    margin-top: 0;
+}
+
 button {
     margin-top: 1rem;
     padding: 0.6rem 1.5rem;

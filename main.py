@@ -31,8 +31,9 @@ def on_submit(event):
     swap_tokens = int(document.querySelector("#swap-tokens").value)
     retiring = parse_csv(document.querySelector("#retiring-heroes").value)
     top_ew = parse_csv(document.querySelector("#top-ew-heroes").value)
+    cane = document.querySelector("#cane-mode").checked
 
-    guide_text = generate_guide(swap_tokens, retiring, top_ew)
+    guide_text = generate_guide(swap_tokens, retiring, top_ew, cane_mode=cane)
 
     output = document.querySelector("#guide-output")
     output.innerHTML = markup_to_html(guide_text)

@@ -56,24 +56,28 @@ def generate_guide(
     swap_tokens: int,
     retiring_heroes: List[str] = None,
     top_ew_heroes: List[str] = None,
+    cane_mode: bool = False,
 ) -> str:
     """Produce the full guide text for the given inputs."""
     retiring_heroes = retiring_heroes or []
     top_ew_heroes = top_ew_heroes or []
- 
+
     if not isinstance(swap_tokens, int) or isinstance(swap_tokens, bool):
         return "Error: swap_tokens must be a whole number (got a non-integer)."
     if swap_tokens < 0:
         return "Error: swap_tokens cannot be negative."
- 
+
+    if cane_mode:
+        return _generate_guide_cane(swap_tokens, retiring_heroes, top_ew_heroes)
+
     lines: List[str] = [GLOBAL_NOTE, ""]
     n = 1  # running step number
- 
+
     def step(text: str) -> None:
         nonlocal n
         lines.append(f"{n}. {text}")
         n += 1
- 
+
     # ---- Case A: no swaps -------------------------------------------------
     if swap_tokens == 0:
         lines.append("You have 0 swap tokens — promotion-only sequence:")
@@ -93,10 +97,10 @@ def generate_guide(
             "rebuild Sarah back to 5 stars."
         )
         return "\n".join(lines)
- 
+
     # ---- Case B: one or more swaps ---------------------------------------
     targets, dropped = build_targets(swap_tokens, retiring_heroes, top_ew_heroes)
- 
+
     if not targets:
         lines.append(
             f"You have {swap_tokens} swap token(s) but named no heroes. "
@@ -104,11 +108,11 @@ def generate_guide(
             "chain."
         )
         return "\n".join(lines)
- 
+
     chain = " -> ".join(["Sarah"] + targets)
     lines.append(f"Swap chain ({len(targets)} swap(s)): {chain}")
     lines.append("")
- 
+
     # Fixed opening
     step(
         "**Prep Sarah: max her skill medals before promotion.** "
@@ -124,7 +128,7 @@ def generate_guide(
         "swap** — so the shards sit on Sarah and participate in the "
         "conversion."
     )
- 
+
     # Unrolled swaps
     carrier = "Sarah"
     for i, target in enumerate(targets):
@@ -142,7 +146,7 @@ def generate_guide(
             f"medals to your mailbox."
         )
         carrier = target
- 
+
     # Fixed closing
     step(
         f"**Rebuild {carrier}:** he/she is still 3 stars and holds all the "
@@ -153,7 +157,7 @@ def generate_guide(
         f"**Apply all remaining returned skill medals** (from "
         f"{applied_from}) to any heroes you like for VS points."
     )
- 
+
     if dropped:
         lines.append("")
         lines.append(
@@ -161,7 +165,67 @@ def generate_guide(
             f"{swap_tokens}-token budget and were not used: "
             f"{', '.join(dropped)}."
         )
- 
+
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Cane-mode: same logic, phrased for a small child
+# --------------------------------------------------------------------------
+
+_CANE_GLOBAL_NOTE = (
+    "OKAY LISTEN UP! Do all of this on THURSDAY! Let's go!"
+)
+
+
+def _generate_guide_cane(
+    swap_tokens: int,
+    retiring_heroes: List[str],
+    top_ew_heroes: List[str],
+) -> str:
+    lines: List[str] = [_CANE_GLOBAL_NOTE, ""]
+    n = 1
+
+    def step(text: str) -> None:
+        nonlocal n
+        lines.append(f"{n}. {text}")
+        n += 1
+
+    if swap_tokens == 0:
+        step("**Max Sarah's skill medals and shards!**")
+        step("**PROMOTE Sarah to UR!** BOOM!")
+        step("**Open mailbox, grab everything!** Put medals on whoever you want!")
+        return "\n".join(lines)
+
+    targets, dropped = build_targets(swap_tokens, retiring_heroes, top_ew_heroes)
+
+    if not targets:
+        lines.append("You didn't tell me any hero names, silly!")
+        return "\n".join(lines)
+
+    chain = " -> ".join(["Sarah"] + targets)
+    lines.append(f"Swap chain: {chain}")
+    lines.append("")
+
+    step("**Max Sarah's skill medals!** (150+ Wall-of-Honor first!)")
+    step("**PROMOTE Sarah to UR!** BOOM!")
+    step("**Open mailbox, grab EVERYTHING!** Don't swap yet!")
+
+    carrier = "Sarah"
+    for i, target in enumerate(targets):
+        step(f"**Max {target}'s skill medals!**")
+        step(f"**SWAP {carrier} with {target}!** WHOOOOSH!")
+        carrier = target
+
+    step(f"**Build {carrier} back to 5 stars!**")
+    step("**Put ALL leftover medals on your favorites!** POINTS POINTS POINTS!")
+
+    if dropped:
+        lines.append("")
+        lines.append(
+            f"Sorry {', '.join(dropped)} — not enough tokens, maybe next time!"
+        )
+
     return "\n".join(lines)
  
  
