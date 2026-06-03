@@ -9,6 +9,7 @@ See hero-swap-tool-spec.md for the full spec. This is a proof of concept:
 pure input -> text output, no game state.
 """
  
+import re
 from typing import List, Tuple
  
  
@@ -38,8 +39,13 @@ def build_targets(
     targets = ordered[:swap_tokens]
     dropped = ordered[swap_tokens:]
     return targets, dropped
- 
- 
+
+
+def strip_markup(text: str) -> str:
+    """Remove **..** action markers for plain-text output."""
+    return re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+
+
 GLOBAL_NOTE = (
     "NOTE: Do all of this on hero day (Thursday) so the medal/shard "
     "applications score for VS points."
@@ -73,17 +79,17 @@ def generate_guide(
         lines.append("You have 0 swap tokens — promotion-only sequence:")
         lines.append("")
         step(
-            "Prep Sarah: max her skill medals and shards before promotion. "
+            "**Prep Sarah: max her skill medals and shards before promotion.** "
             "(Precondition: Sarah needs 150+ Wall-of-Honor levels so enough "
             "shards are returned to rebuild her to 5 stars afterward.)"
         )
         step(
-            "Promote Sarah to UR. She becomes a 3-star UR hero; all skill "
+            "**Promote Sarah to UR.** She becomes a 3-star UR hero; all skill "
             "medals and most shards are returned to your mailbox."
         )
         step(
-            "Pick up the returned medals + shards. Apply the skill medals to "
-            "any heroes for VS points, and use the returned SSR shards to "
+            "**Pick up the returned medals + shards.** Apply the skill medals "
+            "to any heroes for VS points, and use the returned SSR shards to "
             "rebuild Sarah back to 5 stars."
         )
         return "\n".join(lines)
@@ -105,17 +111,18 @@ def generate_guide(
  
     # Fixed opening
     step(
-        "Prep Sarah: max her skill medals before promotion. "
+        "**Prep Sarah: max her skill medals before promotion.** "
         "(Precondition: Sarah needs 150+ Wall-of-Honor levels so enough "
         "shards are returned to rebuild a hero to 5 stars later.)"
     )
     step(
-        "Promote Sarah to UR. She becomes a 3-star UR hero; medals + shards "
-        "are returned to your mailbox."
+        "**Promote Sarah to UR.** She becomes a 3-star UR hero; medals + "
+        "shards are returned to your mailbox."
     )
     step(
-        "Pick up the returned medals + shards together — BEFORE any swap — so "
-        "the shards sit on Sarah and participate in the conversion."
+        "**Pick up the returned medals + shards together — BEFORE any "
+        "swap** — so the shards sit on Sarah and participate in the "
+        "conversion."
     )
  
     # Unrolled swaps
@@ -127,9 +134,9 @@ def generate_guide(
             if first
             else "the shards transfer unchanged (UR -> UR, 1:1)"
         )
-        step(f"Max {target}'s skill medals before swapping.")
+        step(f"**Max {target}'s skill medals** before swapping.")
         step(
-            f"Swap {carrier} (3-star) with {target} (5-star): "
+            f"**Swap {carrier} (3-star) with {target} (5-star):** "
             f"{carrier} rises to 5 stars (done); {target} drops to 3 stars, "
             f"inherits the shards — {conv} — and returns its excess skill "
             f"medals to your mailbox."
@@ -138,13 +145,13 @@ def generate_guide(
  
     # Fixed closing
     step(
-        f"Rebuild {carrier}: he/she is still 3 stars and holds all the "
+        f"**Rebuild {carrier}:** he/she is still 3 stars and holds all the "
         f"inherited UR shards — use them to bring {carrier} back to 5 stars."
     )
     applied_from = ", ".join(["Sarah"] + targets)
     step(
-        f"Apply all remaining returned skill medals (from {applied_from}) to "
-        f"any heroes you like for VS points."
+        f"**Apply all remaining returned skill medals** (from "
+        f"{applied_from}) to any heroes you like for VS points."
     )
  
     if dropped:
@@ -189,7 +196,7 @@ def main() -> None:
         "(comma-separated, or blank)? "
     )
     print("\n" + "=" * 64 + "\n")
-    print(generate_guide(swap_tokens, retiring, top_ew))
+    print(strip_markup(generate_guide(swap_tokens, retiring, top_ew)))
  
  
 # --------------------------------------------------------------------------
@@ -198,14 +205,19 @@ def main() -> None:
  
 def _self_test() -> None:
     out = generate_guide(2, ["Murphy"], ["Gordon"])
-    assert "Swap Sarah (3-star) with Murphy (5-star)" in out
+    assert "**Swap Sarah (3-star) with Murphy (5-star):**" in out
     assert "SSR -> UR, 2:1" in out
-    assert "Swap Murphy (3-star) with Gordon (5-star)" in out
+    assert "**Swap Murphy (3-star) with Gordon (5-star):**" in out
     assert "UR -> UR, 1:1" in out
-    assert "Rebuild Gordon" in out
+    assert "**Rebuild Gordon:**" in out
     # 3 opening + 2 swaps*2 + 2 closing = 9 numbered steps
-    assert "9. Apply all remaining returned skill medals" in out
- 
+    assert "9. **Apply all remaining returned skill medals**" in out
+
+    # verify strip_markup works
+    plain = strip_markup(out)
+    assert "**" not in plain
+    assert "Swap Sarah (3-star) with Murphy (5-star):" in plain
+
     # 0-token case
     zero = generate_guide(0)
     assert "promotion-only" in zero

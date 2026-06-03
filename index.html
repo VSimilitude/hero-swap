@@ -3,13 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hero Swap</title>
+    <title>Hero Swap VS Points Guide</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Hero Swap</h1>
-    <script type="py" src="main.py"></script>
+    <h1>Hero Swap VS Points Guide</h1>
+    <p class="subtitle">Last War — Season 4</p>
+
+    <form id="guide-form">
+        <label for="swap-tokens">How many hero swap tokens do you have?</label>
+        <input type="number" id="swap-tokens" min="0" value="1">
+
+        <label for="retiring-heroes">Heroes you're done using (comma-separated, or leave blank)</label>
+        <input type="text" id="retiring-heroes" placeholder="e.g. Murphy, Natalia">
+
+        <label for="top-ew-heroes">Top EW heroes to backfill, highest EW first (comma-separated, or leave blank)</label>
+        <input type="text" id="top-ew-heroes" placeholder="e.g. Gordon, Kim">
+
+        <button type="submit" id="generate-btn">Generate Guide</button>
+    </form>
+
+    <div id="output-container" hidden>
+        <h2>Your Guide</h2>
+        <pre id="guide-output"></pre>
+    </div>
+
+    <script type="py" src="main.py" config='{"files": {"./hero_swap_poc.py": "./hero_swap_poc.py"}}'></script>
 </body>
 </html>
