@@ -57,6 +57,7 @@ def generate_guide(
     retiring_heroes: List[str] = None,
     top_ew_heroes: List[str] = None,
     cane_mode: bool = False,
+    pause_after_first: bool = False,
 ) -> str:
     """Produce the full guide text for the given inputs."""
     retiring_heroes = retiring_heroes or []
@@ -68,7 +69,9 @@ def generate_guide(
         return "Error: swap_tokens cannot be negative."
 
     if cane_mode:
-        return _generate_guide_cane(swap_tokens, retiring_heroes, top_ew_heroes)
+        return _generate_guide_cane(
+            swap_tokens, retiring_heroes, top_ew_heroes, pause_after_first,
+        )
 
     lines: List[str] = [GLOBAL_NOTE, ""]
     n = 1  # running step number
@@ -147,6 +150,17 @@ def generate_guide(
         )
         carrier = target
 
+        if pause_after_first and first and len(targets) > 1:
+            lines.append("")
+            lines.append(
+                f"**--- PAUSE --- Sarah is now UR and 5-star.** "
+                f"{target} is 3-star and holding the shards. "
+                f"You can stop here and save the remaining "
+                f"{len(targets) - 1} swap(s) for a future week when you "
+                f"need VS points. When ready, continue below:"
+            )
+            lines.append("")
+
     # Fixed closing
     step(
         f"**Rebuild {carrier}:** he/she is still 3 stars and holds all the "
@@ -182,6 +196,7 @@ def _generate_guide_cane(
     swap_tokens: int,
     retiring_heroes: List[str],
     top_ew_heroes: List[str],
+    pause_after_first: bool = False,
 ) -> str:
     lines: List[str] = [_CANE_GLOBAL_NOTE, ""]
     n = 1
@@ -216,6 +231,11 @@ def _generate_guide_cane(
         step(f"**Max {target}'s skill medals!**")
         step(f"**SWAP {carrier} with {target}!** WHOOOOSH!")
         carrier = target
+
+        if pause_after_first and i == 0 and len(targets) > 1:
+            lines.append("")
+            lines.append("--- PAUSE --- You can stop here and save the rest for later!")
+            lines.append("")
 
     step(f"**Build {carrier} back to 5 stars!**")
     step("**Put ALL leftover medals on your favorites!** POINTS POINTS POINTS!")
