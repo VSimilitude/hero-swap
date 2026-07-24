@@ -50,28 +50,38 @@ export const GameButton: React.FC<{
   </div>
 );
 
-// A fan of gold stars (as over the game's MAX'd skill icons).
-export const StarFan: React.FC<{ count?: number; size?: number }> = ({
-  count = 5,
-  size = 16,
-}) => (
-  <div style={{ display: "flex", gap: 1 }}>
-    {Array.from({ length: count }).map((_, i) => (
-      <span
-        key={i}
-        style={{
-          fontSize: size,
-          lineHeight: 1,
-          color: theme.star,
-          transform: `translateY(${Math.abs(i - (count - 1) / 2) * 2}px)`,
-          textShadow: "0 1px 1px rgba(0,0,0,0.6)",
-        }}
-      >
-        {"★"}
-      </span>
-    ))}
-  </div>
-);
+// A fan of gold stars (as over the game's MAX'd skill icons). `lit` controls how
+// many stars (from the left) are still gold; the rest render greyed-out — used
+// when a skill de-levels and refunds its medals during promotion.
+export const StarFan: React.FC<{
+  count?: number;
+  size?: number;
+  lit?: number;
+}> = ({ count = 5, size = 16, lit }) => {
+  const litCount = lit ?? count;
+  return (
+    <div style={{ display: "flex", gap: 1 }}>
+      {Array.from({ length: count }).map((_, i) => {
+        const on = i < litCount;
+        return (
+          <span
+            key={i}
+            style={{
+              fontSize: size,
+              lineHeight: 1,
+              color: on ? theme.star : "rgba(150,150,170,0.55)",
+              transform: `translateY(${Math.abs(i - (count - 1) / 2) * 2}px)`,
+              textShadow: on ? "0 1px 1px rgba(0,0,0,0.6)" : "none",
+              transition: "none",
+            }}
+          >
+            {"★"}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
 
 // Small "MAX" badge like the game's maxed skill icons.
 export const MaxBadge: React.FC = () => (

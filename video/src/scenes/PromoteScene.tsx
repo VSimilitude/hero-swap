@@ -15,22 +15,59 @@ type Props = {
 
 const SKILL_COLORS = ["#7b57d6", "#4f7bd6", "#8a5ad6", "#d68a3a"];
 
-const SkillIcon: React.FC<{ color: string }> = ({ color }) => (
-  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-    <StarFan size={12} />
-    <div
-      style={{
-        width: 58,
-        height: 58,
-        borderRadius: 12,
-        background: `linear-gradient(150deg, ${color}, #23213f)`,
-        border: "2px solid #ffd24d",
-        boxShadow: "0 0 10px rgba(255,210,77,0.4)",
-      }}
-    />
-    <MaxBadge />
-  </div>
-);
+const clampBoth = {
+  extrapolateLeft: "clamp" as const,
+  extrapolateRight: "clamp" as const,
+};
+
+// Medal-refund schedule (frames). Each of the four skill boxes drains its star
+// fan and releases its medals in turn, slightly overlapping, all within the
+// 180-frame budget. The last box (i=3) drains 135->157 and its last medal
+// lands ~176, leaving a few frames of settle.
+const RELEASE_BASE = 102; // first box begins after the promote press (~96)
+const BOX_STAGGER = 11; // per-box offset (overlap between boxes)
+const DRAIN_FRAMES = 22; // star fan grey-out / MAX drop duration per box
+const MEDAL_TRAVEL = 30; // frames for a medal to arc to the mailbox
+
+// Canvas-space anchors (1280x720). The skill boxes frame the centred portrait;
+// medals launch from each box, hero shards from the portrait, both arcing to
+// the mailbox in the top-right. Tuned against the rendered layout.
+const BOXES = [
+  { x: 410, y: 214 }, // top-left
+  { x: 872, y: 214 }, // top-right
+  { x: 410, y: 384 }, // bottom-left
+  { x: 872, y: 384 }, // bottom-right
+];
+const MAILBOX_PT = { x: 1188, y: 82 };
+const PORTRAIT_PT = { x: 622, y: 320 };
+
+// One skill box: gold-starred maxed icon that de-levels as `drain` (0..1) rises
+// — stars grey out one by one, the box desaturates, and the MAX badge drops.
+const SkillIcon: React.FC<{ color: string; drain: number }> = ({ color, drain }) => {
+  const lit = Math.round(5 * (1 - drain));
+  const badgeDrop = interpolate(drain, [0.5, 1], [0, 1], clampBoth);
+  const glow = interpolate(drain, [0, 0.8], [0.4, 0], clampBoth);
+  const drained = drain > 0.5;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+      <StarFan size={12} lit={lit} />
+      <div
+        style={{
+          width: 58,
+          height: 58,
+          borderRadius: 12,
+          background: `linear-gradient(150deg, ${color}, #23213f)`,
+          border: `2px solid ${drained ? "rgba(180,182,205,0.6)" : "#ffd24d"}`,
+          boxShadow: `0 0 10px rgba(255,210,77,${glow})`,
+          filter: `grayscale(${drain * 0.75}) brightness(${1 - drain * 0.28})`,
+        }}
+      />
+      <div style={{ transform: `translateY(${badgeDrop * 16}px)`, opacity: 1 - badgeDrop }}>
+        <MaxBadge />
+      </div>
+    </div>
+  );
+};
 
 const Portrait: React.FC<{ hero: string; accent: string; glow: string }> = ({
   hero,
@@ -104,6 +141,17 @@ export const PromoteScene: React.FC<Props> = ({ hero, caneMode }) => {
     ? "PROMOTE SARAH TO UR! BOOM!"
     : `Promote ${hero} to UR — she drops to 3★ and returns all medals + shards to the mailbox.`;
 
+  // Per-box drain progress (0..1): drives both the visual de-level and the
+  // matching medal release, so stars empty in sync with the medals leaving.
+  const boxDrain = BOXES.map((_, i) =>
+    interpolate(
+      frame,
+      [RELEASE_BASE + i * BOX_STAGGER, RELEASE_BASE + i * BOX_STAGGER + DRAIN_FRAMES],
+      [0, 1],
+      clampBoth,
+    ),
+  );
+
   const introRise = interpolate(frame, [0, 20], [24, 0], {
     extrapolateRight: "clamp",
   });
@@ -167,16 +215,16 @@ export const PromoteScene: React.FC<Props> = ({ hero, caneMode }) => {
             <Portrait hero={hero} accent={accent} glow={glow} />
           </div>
           <div style={{ position: "absolute", left: 0, top: 10 }}>
-            <SkillIcon color={SKILL_COLORS[0]} />
+            <SkillIcon color={SKILL_COLORS[0]} drain={boxDrain[0]} />
           </div>
           <div style={{ position: "absolute", right: 0, top: 10 }}>
-            <SkillIcon color={SKILL_COLORS[1]} />
+            <SkillIcon color={SKILL_COLORS[1]} drain={boxDrain[1]} />
           </div>
           <div style={{ position: "absolute", left: 0, bottom: 0 }}>
-            <SkillIcon color={SKILL_COLORS[2]} />
+            <SkillIcon color={SKILL_COLORS[2]} drain={boxDrain[2]} />
           </div>
           <div style={{ position: "absolute", right: 0, bottom: 0 }}>
-            <SkillIcon color={SKILL_COLORS[3]} />
+            <SkillIcon color={SKILL_COLORS[3]} drain={boxDrain[3]} />
           </div>
         </div>
 
@@ -237,32 +285,50 @@ export const PromoteScene: React.FC<Props> = ({ hero, caneMode }) => {
         </div>
       </div>
 
-      {/* returning medals + shards fly to the mailbox (top-right) */}
-      {Array.from({ length: 7 }).map((_, i) => {
-        const start = 100 + i * 4;
-        const p = interpolate(frame, [start, start + 34], [0, 1], {
-          extrapolateLeft: "clamp",
-          extrapolateRight: "clamp",
+      {/* refunded skill medals launch FROM each skill box, staggered per box,
+          arcing to the mailbox as that box's stars drain (2 medals per box) */}
+      {BOXES.flatMap((box, i) => {
+        const dStart = RELEASE_BASE + i * BOX_STAGGER;
+        return [0, 1].map((k) => {
+          const start = dStart + 3 + k * 8;
+          const p = interpolate(frame, [start, start + MEDAL_TRAVEL], [0, 1], clampBoth);
+          if (p <= 0 || p >= 1) return null;
+          const ex = MAILBOX_PT.x + (i - 1.5) * 8 + k * 4;
+          const x = interpolate(p, [0, 1], [box.x, ex]) - 15;
+          const y =
+            interpolate(p, [0, 1], [box.y, MAILBOX_PT.y]) - Math.sin(p * Math.PI) * 46 - 18;
+          const opacity = interpolate(p, [0, 0.12, 0.85, 1], [0, 1, 1, 0], clampBoth);
+          const scale = interpolate(p, [0, 1], [1, 0.7]);
+          return (
+            <div
+              key={`medal-${i}-${k}`}
+              style={{ position: "absolute", left: x, top: y, opacity, transform: `scale(${scale})` }}
+            >
+              <MedalIcon size={30} />
+            </div>
+          );
         });
-        const isShard = i % 2 === 0;
-        const x = interpolate(p, [0, 1], [560, 1120 + (i % 3) * 12]);
-        const y = interpolate(p, [0, 1], [340, 70]);
+      })}
+
+      {/* hero shards keep flowing from Sarah's portrait to the mailbox */}
+      {[0, 1, 2, 3].map((s) => {
+        const start = 104 + s * 9;
+        const p = interpolate(frame, [start, start + MEDAL_TRAVEL], [0, 1], clampBoth);
+        if (p <= 0 || p >= 1) return null;
+        const ex = MAILBOX_PT.x + (s - 1.5) * 10;
+        const x = interpolate(p, [0, 1], [PORTRAIT_PT.x + (s - 1.5) * 22, ex]) - 17;
+        const y =
+          interpolate(p, [0, 1], [PORTRAIT_PT.y + (s % 2) * 24, MAILBOX_PT.y]) -
+          Math.sin(p * Math.PI) * 40 -
+          17;
+        const opacity = interpolate(p, [0, 0.12, 0.85, 1], [0, 1, 1, 0], clampBoth);
+        const scale = interpolate(p, [0, 1], [1, 0.72]);
         return (
           <div
-            key={i}
-            style={{
-              position: "absolute",
-              left: x,
-              top: y,
-              opacity: p > 0 && p < 1 ? 1 : 0,
-              transform: `scale(${1 - p * 0.25})`,
-            }}
+            key={`shard-${s}`}
+            style={{ position: "absolute", left: x, top: y, opacity, transform: `scale(${scale})` }}
           >
-            {isShard ? (
-              <ShardIcon rarity="SSR" size={34} />
-            ) : (
-              <MedalIcon size={32} />
-            )}
+            <ShardIcon rarity="SSR" size={34} />
           </div>
         );
       })}
