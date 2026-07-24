@@ -42,20 +42,17 @@ def markup_to_html(text):
     return "\n".join(lines)
 
 
-def update_video(container, plan, cane, voiceover=False, status_el=None):
+def update_video(container, plan, cane, voiceover=False):
     """Mount (or hide) the animated walkthrough. Degrades silently if the
     bundle failed to load or there is nothing to animate.
 
-    When `voiceover` is set, hand off to the async voiceover path, which
-    lazy-loads the (heavy) TTS bundle, synthesizes per-scene narration, and
-    mounts the player with audio — falling back to the silent video on failure.
+    When `voiceover` is set, the player mounts the pre-baked generic narration
+    clips (same-origin static audio) as per-scene tracks — no download, no TTS.
     """
     has_bundle = hasattr(window, "HeroSwapVideo")
 
     if plan["error"] or not plan["events"]:
         container.hidden = True
-        if status_el is not None:
-            status_el.hidden = True
         if has_bundle:
             window.HeroSwapVideo.unmount(container)
         return
@@ -65,22 +62,8 @@ def update_video(container, plan, cane, voiceover=False, status_el=None):
         container.hidden = True
         return
 
-    plan_json = json.dumps(plan)
     container.hidden = False
-
-    if voiceover:
-        if status_el is not None:
-            status_el.textContent = "Loading voice model…"
-            status_el.hidden = False
-        # Fire-and-forget: the JS glue drives status updates and mounts the
-        # player itself (with audio on success, silent on failure).
-        window.HeroSwapVideo.mountWithVoiceover(
-            container, plan_json, cane, status_el,
-        )
-    else:
-        if status_el is not None:
-            status_el.hidden = True
-        window.HeroSwapVideo.mount(container, plan_json, cane)
+    window.HeroSwapVideo.mount(container, json.dumps(plan), cane, voiceover)
 
 
 @when("submit", "#guide-form")
@@ -115,15 +98,12 @@ def on_submit(event):
     container.hidden = False
 
     video_container = document.querySelector("#video-container")
-    status_el = document.querySelector("#voiceover-status")
     if show_video:
         plan = build_plan(
             swap_tokens, retiring, top_ew, pause_after_first=pause,
         )
-        update_video(video_container, plan, cane, voiceover, status_el)
+        update_video(video_container, plan, cane, voiceover)
     else:
         video_container.hidden = True
-        if status_el is not None:
-            status_el.hidden = True
         if hasattr(window, "HeroSwapVideo"):
             window.HeroSwapVideo.unmount(video_container)

@@ -55,7 +55,7 @@
             <input type="checkbox" id="voiceover">
             <label for="voiceover">Voiceover</label>
         </div>
-        <p class="input-hint">Narrates the walkthrough with an in-browser AI voice. First use downloads a ~90 MB voice model (one-time, then cached by your browser); everything else stays fully offline.</p>
+        <p class="input-hint">Adds a narrator voice to the walkthrough (pre-generated, plays instantly — no download).</p>
 
         <button type="submit" id="generate-btn">Generate Guide</button>
     </form>
@@ -65,7 +65,6 @@
         <pre id="guide-output"></pre>
     </div>
 
-    <p id="voiceover-status" class="input-hint" aria-live="polite" hidden></p>
     <div id="video-container" hidden></div>
 
     <script src="assets/swap-video.bundle.js" defer></script>

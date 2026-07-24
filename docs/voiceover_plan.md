@@ -1,5 +1,33 @@
 # Voiceover — Implementation Plan (Kokoro in-browser)
 
+> **SUPERSEDED (2026-07) — replaced by pre-baked generic narration.**
+>
+> The in-browser TTS scheme below (download Kokoro + ONNX runtime, synthesize
+> per-hero lines in the browser) was shipped, then retired because it stalled on
+> mobile (WebGPU phones pulled a ~326 MB fp32 model and hung inside `generate()`)
+> and re-introduced an external-host dependency.
+>
+> The current design generates the narration **once, at build time**:
+> - Narration is now **generic / hero-name-free** — only Sarah (the fixed chain
+>   start) is named; everyone else is "the next hero" / "the last hero", since
+>   the visuals already show who's who. One short line per scene *type*
+>   (intro, promote, pickup, first-swap 2:1, later-swap 1:1, pause, rebuild,
+>   finale) × normal/cane = 16 clips.
+> - `video/scripts/generate-narration.mjs` (`npm run narration`) synthesizes
+>   each line with `kokoro-js` **in Node** (q8 / CPU, voices `af_heart` /
+>   `af_bella`), encodes small mono MP3s (lamejs; ffmpeg if present; WAV
+>   fallback) into `assets/narration/<key>.mp3`, and emits the generated
+>   manifest `video/src/narrationClips.ts` (`key → {file, durationSeconds}`).
+>   `kokoro-js` and `@breezystack/lamejs` are **devDependencies** only.
+> - At runtime the Voiceover checkbox simply mounts these same-origin static
+>   MP3s as `<Audio>` tracks; `narration.voiceoverFor(plan, caneMode)` maps each
+>   scene to its clip, and scene-stretching uses the manifest durations. **No
+>   model download, no in-browser TTS, no external hosts** — the site is fully
+>   self-contained again. The `swap-video-tts.bundle.js` bundle and
+>   `video/src/tts-entry.ts` were deleted.
+>
+> The rest of this document is retained for historical context only.
+
 ## Goal
 
 Opt-in narrated voiceover for the video walkthrough, synthesized **in the

@@ -83,23 +83,30 @@ if the bundle is missing the page degrades silently to text-only.
   built by esbuild. **It is committed on purpose** so the deployed site stays
   fully static (PyScript + plain files, no Node at runtime). No network requests,
   fonts, or images are loaded at page runtime.
-- **Optional voiceover:** ticking the "Voiceover" checkbox narrates the
-  walkthrough with an in-browser AI voice (Kokoro-82M via `kokoro-js`). The TTS
-  runtime lives in a **second** committed bundle,
-  `assets/swap-video-tts.bundle.js`, injected on demand only when voiceover is
-  requested — the normal page load never touches it. It synthesizes one WAV per
-  scene (`video/src/narration.ts`), mounts them as Remotion `<Audio>` tracks,
-  and stretches any scene whose narration runs longer than its animation
-  (`sceneFramesFor` in `plan.ts` feeds both the duration math and the layout).
-  This is the one deliberate exception to the no-external-hosts rule: the voice
-  model (~90 MB) and ONNX runtime are fetched from HuggingFace/CDN on first use,
-  then cached by the browser. Device selection **probes for a real GPU adapter**
-  (`navigator.gpu.requestAdapter()`) before committing to WebGPU — an
-  adapter-less or flaky GPU stack goes straight to a clean WASM (q8) session
-  rather than poisoning ONNX Runtime's shared JSEP module. A WebGPU synthesis
-  failure additionally retries once on WASM; only if that also fails does the
-  page drop to the silent walkthrough with a note. Both bundles are produced by
-  `npm run build` (`build:player` + `build:tts`).
+- **Optional voiceover (pre-baked):** ticking the "Voiceover" checkbox mounts a
+  narrator voice over the walkthrough. The narration is **generic and
+  hero-name-free** (only Sarah is named; everyone else is "the next hero" / "the
+  last hero" — the visuals show who's who), so it can be generated **once at
+  build time** rather than per-input in the browser. There are 16 short clips
+  (one per scene type — intro, promote, pickup, first-swap 2:1, later-swap 1:1,
+  pause, rebuild, finale — × normal/cane), shipped as small same-origin MP3s
+  under `assets/narration/` (~600 KB total). At runtime `voiceoverFor(plan,
+  caneMode)` in `video/src/narration.ts` maps each scene to its clip via the
+  generated manifest `video/src/narrationClips.ts`, mounts them as Remotion
+  `<Audio>` tracks, and stretches any scene whose clip runs longer than its
+  animation (`sceneFramesFor` in `plan.ts` feeds both the duration math and the
+  layout). **No model download, no in-browser TTS, no external hosts** — the
+  page stays fully self-contained.
+- **Regenerate narration (only when the lines change):**
+  ```
+  cd video && npm run narration
+  ```
+  Runs `video/scripts/generate-narration.mjs`, which synthesizes each line with
+  `kokoro-js` **in Node** (q8/CPU, voices `af_heart` / `af_bella`), encodes MP3s
+  (via `@breezystack/lamejs`, or ffmpeg if on PATH; WAV fallback otherwise) into
+  `assets/narration/`, and rewrites `video/src/narrationClips.ts`. Commit the
+  updated audio + manifest. `kokoro-js` and `lamejs` are **devDependencies**
+  (build-time only).
 - **Rebuild after changing anything in `video/`:**
   ```
   cd video && npm install && npm run build
