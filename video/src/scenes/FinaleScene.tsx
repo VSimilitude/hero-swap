@@ -3,6 +3,7 @@ import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Stage } from "../components/Stage";
 import { Caption } from "../components/Caption";
 import { HeroAvatar } from "../components/HeroCard";
+import { MedalIcon } from "../components/ItemIcons";
 import { theme, darkOutline } from "../theme";
 
 type Props = {
@@ -42,7 +43,8 @@ export const FinaleScene: React.FC<Props> = ({ sources, caneMode }) => {
           extrapolateLeft: "clamp",
           extrapolateRight: "clamp",
         });
-        const y = interpolate(p, [0, 1], [-40, 700]);
+        const y = interpolate(p, [0, 1], [-50, 700]);
+        const spin = (frame * 3 + i * 40) % 360;
         return (
           <div
             key={i}
@@ -50,14 +52,12 @@ export const FinaleScene: React.FC<Props> = ({ sources, caneMode }) => {
               position: "absolute",
               left: col + 30,
               top: y,
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              background: theme.medal,
-              boxShadow: `0 0 8px ${theme.medal}`,
-              opacity: 0.9,
+              opacity: 0.95,
+              transform: `rotate(${spin}deg)`,
             }}
-          />
+          >
+            <MedalIcon size={28} />
+          </div>
         );
       })}
 

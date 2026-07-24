@@ -3,19 +3,27 @@ import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Stage } from "../components/Stage";
 import { Caption } from "../components/Caption";
 import { Heading } from "../components/GameUI";
-import { theme, darkOutline } from "../theme";
+import { MedalIcon, ShardIcon, ItemTile } from "../components/ItemIcons";
+import { theme } from "../theme";
 
 type Props = {
   caneMode: boolean;
 };
 
-// Mailbox opens; "pick up BEFORE swapping" callout.
+// Mailbox opens; returned items land as authentic inventory tiles.
 export const PickupScene: React.FC<Props> = ({ caneMode }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const open = spring({ frame: frame - 24, fps, config: { damping: 200 } });
+  const open = spring({ frame: frame - 18, fps, config: { damping: 200 } });
   const lidAngle = interpolate(open, [0, 1], [0, -110]);
+
+  const tilesIn = spring({
+    frame: frame - 58,
+    fps,
+    config: { damping: 200 },
+    durationInFrames: 30,
+  });
 
   const caption = caneMode
     ? "OPEN MAILBOX, GRAB EVERYTHING! DON'T SWAP YET!"
@@ -23,18 +31,18 @@ export const PickupScene: React.FC<Props> = ({ caneMode }) => {
 
   return (
     <Stage>
-      <div style={{ marginBottom: 34, textAlign: "center" }}>
+      <div style={{ marginBottom: 26, textAlign: "center" }}>
         <Heading size={38}>Mailbox</Heading>
       </div>
-      <div style={{ position: "relative", width: 360, height: 300 }}>
+      <div style={{ position: "relative", width: 300, height: 210 }}>
         {/* Box body */}
         <div
           style={{
             position: "absolute",
-            left: 60,
-            top: 120,
-            width: 240,
-            height: 160,
+            left: 40,
+            top: 60,
+            width: 220,
+            height: 140,
             background: `linear-gradient(180deg, ${theme.cyan}, ${theme.cyanDark})`,
             border: "3px solid rgba(255,255,255,0.35)",
             borderRadius: 14,
@@ -45,10 +53,10 @@ export const PickupScene: React.FC<Props> = ({ caneMode }) => {
         <div
           style={{
             position: "absolute",
-            left: 60,
-            top: 120,
-            width: 240,
-            height: 46,
+            left: 40,
+            top: 60,
+            width: 220,
+            height: 44,
             background: `linear-gradient(180deg, ${theme.cyanLight}, ${theme.cyan})`,
             border: "3px solid rgba(255,255,255,0.45)",
             borderRadius: "14px 14px 0 0",
@@ -56,17 +64,17 @@ export const PickupScene: React.FC<Props> = ({ caneMode }) => {
             transform: `rotateX(${lidAngle}deg)`,
           }}
         />
-        {/* Tokens popping out */}
+        {/* items popping out */}
         {Array.from({ length: 6 }).map((_, i) => {
-          const start = 40 + i * 7;
+          const start = 30 + i * 6;
           const p = interpolate(frame, [start, start + 40], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           });
           const isShard = i % 2 === 0;
-          const targetX = 74 + i * 36;
-          const x = interpolate(p, [0, 1], [180, targetX]);
-          const y = interpolate(p, [0, 0.5, 1], [150, 20, 84]);
+          const targetX = 44 + i * 36;
+          const x = interpolate(p, [0, 1], [150, targetX]);
+          const y = interpolate(p, [0, 0.5, 1], [90, -30, 20]);
           return (
             <div
               key={i}
@@ -74,30 +82,34 @@ export const PickupScene: React.FC<Props> = ({ caneMode }) => {
                 position: "absolute",
                 left: x,
                 top: y,
-                width: 34,
-                height: 34,
-                borderRadius: isShard ? 8 : 17,
-                background: isShard ? theme.shard : theme.medal,
-                border: "2px solid rgba(255,255,255,0.55)",
-                boxShadow: `0 0 12px ${isShard ? theme.shard : theme.medal}`,
                 opacity: p,
-                transform: `scale(${0.6 + p * 0.6})`,
+                transform: `scale(${0.5 + p * 0.5})`,
               }}
-            />
+            >
+              {isShard ? <ShardIcon rarity="SSR" size={30} /> : <MedalIcon size={28} />}
+            </div>
           );
         })}
       </div>
-      <div style={{ height: 12 }} />
+
+      {/* returned inventory tiles */}
       <div
         style={{
-          color: theme.star,
-          fontSize: 20,
-          fontWeight: 900,
-          textShadow: darkOutline(1),
+          display: "flex",
+          gap: 40,
+          marginTop: 18,
+          opacity: tilesIn,
+          transform: `translateY(${interpolate(tilesIn, [0, 1], [24, 0])}px)`,
         }}
       >
-        medals + shards returned
+        <ItemTile count="x40" label="Skill Medals" size={116}>
+          <MedalIcon size={78} />
+        </ItemTile>
+        <ItemTile count="x800" label="SSR Shards" size={116}>
+          <ShardIcon rarity="SSR" size={84} />
+        </ItemTile>
       </div>
+
       <Caption text={caption} caneMode={caneMode} />
     </Stage>
   );

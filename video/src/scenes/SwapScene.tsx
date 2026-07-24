@@ -4,8 +4,15 @@ import { Stage } from "../components/Stage";
 import { Caption } from "../components/Caption";
 import { HeroCard } from "../components/HeroCard";
 import { RarityWord } from "../components/RarityWord";
+import { ShardIcon, MedalIcon } from "../components/ItemIcons";
 import { SwapEvent } from "../plan";
 import { theme, darkOutline } from "../theme";
+
+// Shard cluster offsets: 6 SSR pieces convert 2:1 into 3 UR pieces.
+const PURPLE_OFF: [number, number][] = [
+  [-32, -16], [0, -22], [32, -16], [-32, 14], [0, 20], [32, 14],
+];
+const GOLD_OFF: [number, number][] = [[-30, -4], [0, -12], [30, -4]];
 
 type Props = {
   event: SwapEvent;
@@ -39,9 +46,30 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
   const carrierStars = Math.round(interpolate(swapP, [0, 1], [3, 5]));
   const targetStars = Math.round(interpolate(swapP, [0, 1], [5, 3]));
 
-  // Shard packet glides left→right during the swap.
-  const packetX = interpolate(swapP, [0, 1], [318, 646]);
-  const packetVisible = frame > 72 && frame < 210;
+  // Shard cluster glides left→right during the swap.
+  const packetX = interpolate(swapP, [0, 1], [330, 636]);
+  const packetVisible = frame > 72 && frame < 214;
+
+  // First swap: SSR (purple) shards convert 2:1 to UR (gold) mid-flight.
+  const convAt = 0.52;
+  const purpleOp = first
+    ? interpolate(swapP, [0, convAt - 0.05, convAt + 0.05], [1, 1, 0], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : 0;
+  const goldOp = first
+    ? interpolate(swapP, [convAt - 0.02, convAt + 0.14], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : 1;
+  const flash = first
+    ? interpolate(swapP, [convAt - 0.06, convAt, convAt + 0.1], [0, 1, 0], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      })
+    : 0;
 
   // Conversion badge (first swap only) fades in as the packet lands.
   const badgeP = interpolate(frame, [150, 174], [0, 1], {
@@ -105,28 +133,54 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
           {"⇄"}
         </div>
 
-        {/* shard packet */}
+        {/* shard cluster (SSR purple pieces → UR gold pieces, 2:1) */}
         {packetVisible ? (
-          <div
-            style={{
-              position: "absolute",
-              left: packetX,
-              top: 250,
-              width: 64,
-              height: 44,
-              borderRadius: 9,
-              background: `linear-gradient(180deg, #57e3e3, ${theme.shard})`,
-              border: "2px solid rgba(255,255,255,0.6)",
-              color: "#08312f",
-              fontSize: 13,
-              fontWeight: 900,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: `0 0 16px ${theme.shard}`,
-            }}
-          >
-            SHARDS
+          <div style={{ position: "absolute", left: packetX, top: 250 }}>
+            {/* conversion flash */}
+            {first ? (
+              <div
+                style={{
+                  position: "absolute",
+                  left: -50,
+                  top: -50,
+                  width: 130,
+                  height: 130,
+                  borderRadius: 65,
+                  background:
+                    "radial-gradient(circle, rgba(255,232,150,0.95) 0%, rgba(255,180,58,0) 68%)",
+                  opacity: flash,
+                  transform: `scale(${0.5 + flash * 1.3})`,
+                }}
+              />
+            ) : null}
+            {/* SSR purple pieces */}
+            {purpleOp > 0
+              ? PURPLE_OFF.map(([ox, oy], i) => (
+                  <div
+                    key={`p${i}`}
+                    style={{ position: "absolute", left: ox, top: oy, opacity: purpleOp }}
+                  >
+                    <ShardIcon rarity="SSR" size={30} />
+                  </div>
+                ))
+              : null}
+            {/* UR gold pieces (half as many) */}
+            {goldOp > 0
+              ? GOLD_OFF.map(([ox, oy], i) => (
+                  <div
+                    key={`g${i}`}
+                    style={{
+                      position: "absolute",
+                      left: ox,
+                      top: oy,
+                      opacity: goldOp,
+                      transform: `scale(${0.75 + goldOp * 0.25})`,
+                    }}
+                  >
+                    <ShardIcon rarity="UR" size={34} />
+                  </div>
+                ))
+              : null}
           </div>
         ) : null}
 
@@ -190,8 +244,12 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
               boxShadow: "0 6px 14px rgba(0,0,0,0.4)",
               opacity: beatOpacity,
               transform: `scale(${0.8 + beatOpacity * 0.2})`,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
+            <MedalIcon size={26} />
             {`${maxHero} medals maxed ✓`}
           </div>
         ) : null}

@@ -3,7 +3,7 @@ import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Stage } from "../components/Stage";
 import { Caption } from "../components/Caption";
 import { HeroCard } from "../components/HeroCard";
-import { theme } from "../theme";
+import { ShardIcon } from "../components/ItemIcons";
 
 type Props = {
   hero: string;
@@ -50,16 +50,12 @@ export const RebuildScene: React.FC<Props> = ({ hero, caneMode }) => {
                 position: "absolute",
                 left: x,
                 top: y,
-                width: 26,
-                height: 26,
-                borderRadius: 7,
-                background: theme.shard,
-                border: "2px solid rgba(255,255,255,0.5)",
-                boxShadow: `0 0 12px ${theme.shard}`,
                 opacity: p < 1 ? 1 - p * 0.25 : 0,
-                transform: `scale(${1 - p * 0.4})`,
+                transform: `scale(${1.1 - p * 0.5})`,
               }}
-            />
+            >
+              <ShardIcon rarity="UR" size={30} />
+            </div>
           );
         })}
       </div>

@@ -4,6 +4,7 @@ import { Stage } from "../components/Stage";
 import { Caption } from "../components/Caption";
 import { RarityWord } from "../components/RarityWord";
 import { Heading, GameButton, StarFan, MaxBadge } from "../components/GameUI";
+import { MedalIcon, ShardIcon, URBadge } from "../components/ItemIcons";
 import { portraitFor } from "../portraits";
 import { theme, darkOutline, rarityAccent, rarityGlow } from "../theme";
 
@@ -205,13 +206,34 @@ export const PromoteScene: React.FC<Props> = ({ hero, caneMode }) => {
           </span>
         </div>
 
-        {/* Promote button */}
-        <div style={{ marginTop: 4 }}>
+        {/* Promote button + UR Hero Badge consumable */}
+        <div
+          style={{
+            marginTop: 4,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
           <GameButton
             label={isUR ? "Promoted" : "Promote"}
             pressed={press > 0.4}
             glow={interpolate(Math.sin(frame / 6), [-1, 1], [6, 18])}
           />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <URBadge size={34} />
+            <span
+              style={{
+                color: theme.star,
+                fontSize: 20,
+                fontWeight: 900,
+                textShadow: darkOutline(1),
+              }}
+            >
+              1/1
+            </span>
+          </div>
         </div>
       </div>
 
@@ -232,15 +254,16 @@ export const PromoteScene: React.FC<Props> = ({ hero, caneMode }) => {
               position: "absolute",
               left: x,
               top: y,
-              width: 30,
-              height: 30,
-              borderRadius: isShard ? 7 : 15,
-              background: isShard ? theme.shard : theme.medal,
-              boxShadow: `0 0 10px ${isShard ? theme.shard : theme.medal}`,
               opacity: p > 0 && p < 1 ? 1 : 0,
-              transform: `scale(${1 - p * 0.3})`,
+              transform: `scale(${1 - p * 0.25})`,
             }}
-          />
+          >
+            {isShard ? (
+              <ShardIcon rarity="SSR" size={34} />
+            ) : (
+              <MedalIcon size={32} />
+            )}
+          </div>
         );
       })}
 
