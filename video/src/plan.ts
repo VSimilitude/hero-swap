@@ -35,10 +35,19 @@ export type Plan = {
   events: PlanEvent[];
 };
 
+// One synthesized narration track per scene, aligned with planScenes().
+export type SceneAudio = { url: string; durationSeconds: number };
+
 export type VideoProps = {
   plan: Plan;
   caneMode: boolean;
+  voiceover?: SceneAudio[] | null;
 };
+
+// Frames of silent tail left after a narration line finishes, so scenes that
+// are stretched to fit their audio don't cut to the next scene the instant the
+// voice stops.
+export const AUDIO_TAIL_FRAMES = 15;
 
 export const FPS = 30;
 export const WIDTH = 1280;
@@ -148,11 +157,27 @@ export function planScenes(plan: Plan): Scene[] {
   return scenes;
 }
 
-export function planDuration(plan: Plan): number {
-  const total = planScenes(plan).reduce(
-    (sum, s) => sum + s.durationInFrames,
-    0,
-  );
+// Effective per-scene frame counts. Without voiceover this is just each
+// scene's built-in duration. With voiceover, any scene whose narration (plus a
+// short silent tail) runs longer than its built-in duration is stretched to
+// fit; silent/shorter scenes keep their current length. This single function
+// feeds BOTH planDuration() and the <Series> layout so the two never drift.
+export function sceneFramesFor(
+  plan: Plan,
+  voiceover?: SceneAudio[] | null,
+): number[] {
+  const scenes = planScenes(plan);
+  return scenes.map((scene, i) => {
+    const base = scene.durationInFrames;
+    const vo = voiceover && voiceover[i];
+    if (!vo || !(vo.durationSeconds > 0)) return base;
+    const needed = Math.ceil(vo.durationSeconds * FPS) + AUDIO_TAIL_FRAMES;
+    return Math.max(base, needed);
+  });
+}
+
+export function planDuration(plan: Plan, voiceover?: SceneAudio[] | null): number {
+  const total = sceneFramesFor(plan, voiceover).reduce((sum, f) => sum + f, 0);
   // Player requires durationInFrames >= 1 even when there is nothing to show.
   return Math.max(1, total);
 }

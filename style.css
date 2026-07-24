@@ -87,3 +87,125 @@ button:hover {
 #video-container {
     margin-top: 1rem;
 }
+
+/* ---- Roster typeahead chip pickers ---------------------------------------- */
+
+.chip-field {
+    position: relative;
+    max-width: 400px;
+    margin-top: 0.25rem;
+}
+
+.chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.chip-list:not(:empty) {
+    margin-bottom: 0.4rem;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.35rem 0.2rem 0.25rem;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    line-height: 1;
+    color: #1e293b;
+}
+
+.chip--freetext {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.chip-label {
+    font-weight: 600;
+}
+
+.chip-portrait,
+.chip-option-portrait {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #dbe2f0;
+    flex: 0 0 auto;
+}
+
+.chip-medallion {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #64748b;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+
+.chip-remove {
+    margin: 0;
+    padding: 0;
+    width: 18px;
+    height: 18px;
+    line-height: 1;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #475569;
+    font-size: 1.1rem;
+    cursor: pointer;
+    align-self: center;
+}
+
+.chip-remove:hover {
+    background: #cbd5e1;
+    color: #0f172a;
+}
+
+.chip-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.chip-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-width: 400px;
+    margin: 0.15rem 0 0;
+    padding: 0.25rem;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
+    z-index: 30;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.chip-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.chip-option.is-active,
+.chip-option:hover {
+    background: #eef2ff;
+}

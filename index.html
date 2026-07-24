@@ -16,13 +16,23 @@
         <label for="swap-tokens">How many hero swap tokens do you have?</label>
         <input type="number" id="swap-tokens" min="0" value="2">
 
-        <label for="retiring-heroes">Heroes you're done using (comma-separated, or leave blank)</label>
-        <p class="input-hint">These are heroes we will remove skill medals from, so they can be used on another hero.</p>
-        <input type="text" id="retiring-heroes" placeholder="e.g. Carlie, Williams">
+        <label for="retiring-heroes">Heroes you're done using (in priority order, or leave blank)</label>
+        <p class="input-hint">These are heroes we will remove skill medals from, so they can be used on another hero. Type a name to pick from the roster, or enter any hero name.</p>
+        <div class="chip-field" data-field="retiring">
+            <div class="chip-list" aria-live="polite"></div>
+            <input type="text" id="retiring-heroes" class="chip-input" autocomplete="off"
+                   placeholder="Type a hero name…" role="combobox" aria-expanded="false" aria-autocomplete="list">
+            <ul class="chip-dropdown" role="listbox" hidden></ul>
+        </div>
 
-        <label for="top-ew-heroes">Top EW heroes to backfill, highest EW first (comma-separated, or leave blank)</label>
-        <p class="input-hint">Heroes with the highest EW ranks have the most skill medals to return — you can re-apply these at the end for max VS points.</p>
-        <input type="text" id="top-ew-heroes" placeholder="e.g. DVA, Tesla">
+        <label for="top-ew-heroes">Top EW heroes to backfill, highest EW first (or leave blank)</label>
+        <p class="input-hint">Heroes with the highest EW ranks have the most skill medals to return — you can re-apply these at the end for max VS points. Type a name to pick from the roster, or enter any hero name.</p>
+        <div class="chip-field" data-field="top_ew">
+            <div class="chip-list" aria-live="polite"></div>
+            <input type="text" id="top-ew-heroes" class="chip-input" autocomplete="off"
+                   placeholder="Type a hero name…" role="combobox" aria-expanded="false" aria-autocomplete="list">
+            <ul class="chip-dropdown" role="listbox" hidden></ul>
+        </div>
 
         <div class="checkbox-row">
             <input type="checkbox" id="pause-after-first">
@@ -41,6 +51,12 @@
         </div>
         <p class="input-hint">Plays a short visual step-through of the same guide, animated in your browser.</p>
 
+        <div class="checkbox-row">
+            <input type="checkbox" id="voiceover">
+            <label for="voiceover">Voiceover</label>
+        </div>
+        <p class="input-hint">Narrates the walkthrough with an in-browser AI voice. First use downloads a ~90 MB voice model (one-time, then cached by your browser); everything else stays fully offline.</p>
+
         <button type="submit" id="generate-btn">Generate Guide</button>
     </form>
 
@@ -49,9 +65,11 @@
         <pre id="guide-output"></pre>
     </div>
 
+    <p id="voiceover-status" class="input-hint" aria-live="polite" hidden></p>
     <div id="video-container" hidden></div>
 
     <script src="assets/swap-video.bundle.js" defer></script>
+    <script src="chips.js" defer></script>
     <script type="py" src="main.py" config='{"files": {"./hero_swap_poc.py": "./hero_swap_poc.py"}}'></script>
 </body>
 </html>

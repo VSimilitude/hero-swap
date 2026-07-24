@@ -5,11 +5,14 @@
   "description": "Remotion animated walkthrough of the Hero Swap chain, bundled for the browser Player.",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/embed.tsx --bundle --minify --format=iife --outfile=../assets/swap-video.bundle.js --define:process.env.NODE_ENV='\"production\"'",
+    "build": "npm run build:player && npm run build:tts",
+    "build:player": "esbuild src/embed.tsx --bundle --minify --format=iife --outfile=../assets/swap-video.bundle.js --define:process.env.NODE_ENV='\"production\"'",
+    "build:tts": "esbuild src/tts-entry.ts --bundle --minify --format=iife --outfile=../assets/swap-video-tts.bundle.js --define:process.env.NODE_ENV='\"production\"'",
     "studio": "remotion studio"
   },
   "dependencies": {
     "@remotion/player": "4.0.498",
+    "kokoro-js": "1.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "4.0.498"

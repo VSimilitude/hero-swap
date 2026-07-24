@@ -1,6 +1,6 @@
 import React from "react";
-import { AbsoluteFill, Series } from "remotion";
-import { VideoProps, planScenes } from "./plan";
+import { AbsoluteFill, Audio, Series } from "remotion";
+import { VideoProps, planScenes, sceneFramesFor } from "./plan";
 import { theme } from "./theme";
 import { IntroScene } from "./scenes/IntroScene";
 import { PromoteScene } from "./scenes/PromoteScene";
@@ -10,8 +10,14 @@ import { PauseScene } from "./scenes/PauseScene";
 import { RebuildScene } from "./scenes/RebuildScene";
 import { FinaleScene } from "./scenes/FinaleScene";
 
-export const SwapChainVideo: React.FC<VideoProps> = ({ plan, caneMode }) => {
+export const SwapChainVideo: React.FC<VideoProps> = ({
+  plan,
+  caneMode,
+  voiceover,
+}) => {
   const scenes = planScenes(plan);
+  // Effective per-scene lengths (stretched to fit narration when present).
+  const frames = sceneFramesFor(plan, voiceover);
 
   if (scenes.length === 0) {
     return <AbsoluteFill style={{ background: theme.bgBottom }} />;
@@ -65,12 +71,11 @@ export const SwapChainVideo: React.FC<VideoProps> = ({ plan, caneMode }) => {
               );
               break;
           }
+          const audio = voiceover && voiceover[i];
           return (
-            <Series.Sequence
-              key={i}
-              durationInFrames={scene.durationInFrames}
-            >
+            <Series.Sequence key={i} durationInFrames={frames[i]}>
               {node}
+              {audio ? <Audio src={audio.url} /> : null}
             </Series.Sequence>
           );
         })}
