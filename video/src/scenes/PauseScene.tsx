@@ -2,7 +2,7 @@ import React from "react";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { AbsoluteFill } from "remotion";
 import { Caption } from "../components/Caption";
-import { theme, accent } from "../theme";
+import { theme, darkOutline } from "../theme";
 
 type Props = {
   remaining: number;
@@ -14,8 +14,8 @@ export const PauseScene: React.FC<Props> = ({ remaining, caneMode }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const pop = spring({ frame, fps, config: { damping: 200 } });
-  const opacity = interpolate(frame, [0, 12], [0, 1], {
+  const pop = spring({ frame: frame - 6, fps, config: { damping: 200 } });
+  const opacity = interpolate(frame, [0, 18], [0, 1], {
     extrapolateRight: "clamp",
   });
 
@@ -28,31 +28,57 @@ export const PauseScene: React.FC<Props> = ({ remaining, caneMode }) => {
     : "Optional checkpoint — the chain resumes below.";
 
   return (
-    <AbsoluteFill
-      style={{
-        background: accent(caneMode),
-        fontFamily: theme.fontFamily,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingBottom: 100,
-      }}
-    >
-      <div
+    <AbsoluteFill style={{ fontFamily: theme.fontFamily }}>
+      <AbsoluteFill
         style={{
-          textAlign: "center",
-          color: "#fff",
-          opacity,
-          transform: `scale(${0.85 + pop * 0.15})`,
+          background: `linear-gradient(180deg, ${theme.bgTop} 0%, ${theme.bgBottom} 100%)`,
+        }}
+      />
+      <AbsoluteFill
+        style={{
+          background: `radial-gradient(55% 50% at 50% 44%, rgba(255,180,58,0.22) 0%, rgba(58,58,104,0) 70%)`,
+        }}
+      />
+      <AbsoluteFill
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+          paddingBottom: 120,
         }}
       >
-        <div style={{ fontSize: 68, fontWeight: 800, letterSpacing: 2 }}>
-          {"⏸ "}
-          {heading}
+        <div
+          style={{
+            textAlign: "center",
+            color: "#fff",
+            opacity,
+            transform: `scale(${0.85 + pop * 0.15})`,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 70,
+              fontWeight: 900,
+              letterSpacing: 2,
+              color: caneMode ? theme.urGold : "#ffffff",
+              textShadow: darkOutline(3),
+            }}
+          >
+            {"⏸ "}
+            {heading}
+          </div>
+          <div
+            style={{
+              fontSize: 34,
+              fontWeight: 700,
+              marginTop: 22,
+              color: theme.star,
+              textShadow: darkOutline(2),
+            }}
+          >
+            {sub}
+          </div>
         </div>
-        <div style={{ fontSize: 34, fontWeight: 600, marginTop: 20 }}>
-          {sub}
-        </div>
-      </div>
+      </AbsoluteFill>
       <Caption text={caption} caneMode={caneMode} />
     </AbsoluteFill>
   );

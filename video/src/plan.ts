@@ -46,14 +46,16 @@ export const HEIGHT = 720;
 
 // Per-scene durations in frames. max_medals has no scene of its own — it is
 // folded into the following swap scene as a short opening beat.
+// Per-scene durations in frames (30 fps). Paced slow (~1.6x the original
+// budgets) so captions are readable and the star exchanges are legible.
 export const SCENE_FRAMES = {
-  intro: 90,
-  promote: 105,
-  pickup: 75,
-  swap: 150,
-  pause: 75,
-  rebuild: 105,
-  finale: 90,
+  intro: 150,
+  promote: 180,
+  pickup: 120,
+  swap: 240,
+  pause: 120,
+  rebuild: 170,
+  finale: 150,
 } as const;
 
 // A "scene" here is a top-level <Series.Sequence>. max_medals events are

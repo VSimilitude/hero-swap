@@ -3,8 +3,9 @@ import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Stage } from "../components/Stage";
 import { Caption } from "../components/Caption";
 import { HeroCard } from "../components/HeroCard";
+import { RarityWord } from "../components/RarityWord";
 import { SwapEvent } from "../plan";
-import { theme } from "../theme";
+import { theme, darkOutline } from "../theme";
 
 type Props = {
   event: SwapEvent;
@@ -12,41 +13,43 @@ type Props = {
   caneMode: boolean;
 };
 
-// Two hero cards exchange star levels; shard packet slides carrier→target.
-// A brief "medals maxed ✓" beat opens the scene (the folded max_medals event).
+// Two hero cards exchange star levels; a shard packet slides carrier→target.
+// A "medals maxed ✓" beat opens the scene (the folded max_medals event).
 export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const { carrier, target, first, conversion } = event;
 
-  // Beat 1 (0–36): "medals maxed" tag on the target.
-  const beatIn = spring({ frame: frame - 6, fps, config: { damping: 200 } });
-  const beatOut = interpolate(frame, [30, 40], [1, 0], {
+  // Beat 1 (0–66): "medals maxed" tag on the target.
+  const beatIn = spring({ frame: frame - 10, fps, config: { damping: 200 } });
+  const beatOut = interpolate(frame, [54, 68], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
   const beatOpacity = maxHero ? beatIn * beatOut : 0;
 
-  // Beat 2 (40–110): the swap. Star levels cross over.
+  // Beat 2 (72–160): the swap. Star levels cross over, slowly and legibly.
   const swapP = spring({
-    frame: frame - 44,
+    frame: frame - 72,
     fps,
     config: { damping: 200 },
-    durationInFrames: 55,
+    durationInFrames: 84,
   });
   const carrierStars = Math.round(interpolate(swapP, [0, 1], [3, 5]));
   const targetStars = Math.round(interpolate(swapP, [0, 1], [5, 3]));
 
   // Shard packet glides left→right during the swap.
-  const packetX = interpolate(swapP, [0, 1], [330, 690]);
-  const packetVisible = frame > 44 && frame < 130;
+  const packetX = interpolate(swapP, [0, 1], [318, 646]);
+  const packetVisible = frame > 72 && frame < 210;
 
   // Conversion badge (first swap only) fades in as the packet lands.
-  const badgeP = interpolate(frame, [95, 110], [0, 1], {
+  const badgeP = interpolate(frame, [150, 174], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+
+  const arrowGlow = interpolate(Math.sin(frame / 7), [-1, 1], [8, 22]);
 
   const caption = caneMode
     ? `SWAP ${carrier} WITH ${target}! WHOOOOSH!`
@@ -56,8 +59,8 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
 
   return (
     <Stage>
-      <div style={{ position: "relative", width: 900, height: 440 }}>
-        <div style={{ position: "absolute", left: 60, top: 60 }}>
+      <div style={{ position: "relative", width: 980, height: 460 }}>
+        <div style={{ position: "absolute", left: 40, top: 70 }}>
           <HeroCard
             name={carrier}
             stars={carrierStars}
@@ -65,7 +68,7 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
             highlight={carrierStars === 5}
           />
         </div>
-        <div style={{ position: "absolute", right: 60, top: 60 }}>
+        <div style={{ position: "absolute", right: 40, top: 70 }}>
           <HeroCard
             name={target}
             stars={targetStars}
@@ -74,18 +77,26 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
           />
         </div>
 
-        {/* swap arrows */}
+        {/* glossy swap arrow */}
         <div
           style={{
             position: "absolute",
-            left: 0,
-            right: 0,
-            top: 20,
-            textAlign: "center",
-            fontSize: 34,
-            fontWeight: 800,
-            color: theme.blue,
-            opacity: interpolate(frame, [40, 52], [0, 1], {
+            left: 442,
+            top: 168,
+            width: 96,
+            height: 96,
+            borderRadius: 48,
+            background: `linear-gradient(180deg, ${theme.cyanLight}, ${theme.cyanDark})`,
+            border: "3px solid rgba(255,255,255,0.7)",
+            boxShadow: `inset 0 3px 0 rgba(255,255,255,0.55), 0 0 ${arrowGlow}px rgba(126,216,247,0.85), 0 8px 18px rgba(0,0,0,0.4)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#fff",
+            fontSize: 52,
+            fontWeight: 900,
+            textShadow: darkOutline(2),
+            opacity: interpolate(frame, [40, 60], [0, 1], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             }),
@@ -100,18 +111,19 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
             style={{
               position: "absolute",
               left: packetX,
-              top: 210,
-              width: 56,
-              height: 40,
-              borderRadius: 8,
-              background: theme.shard,
-              color: "#fff",
+              top: 250,
+              width: 64,
+              height: 44,
+              borderRadius: 9,
+              background: `linear-gradient(180deg, #57e3e3, ${theme.shard})`,
+              border: "2px solid rgba(255,255,255,0.6)",
+              color: "#08312f",
               fontSize: 13,
-              fontWeight: 800,
+              fontWeight: 900,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 6px 16px rgba(13,148,136,0.4)",
+              boxShadow: `0 0 16px ${theme.shard}`,
             }}
           >
             SHARDS
@@ -125,24 +137,39 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
               position: "absolute",
               left: 0,
               right: 0,
-              bottom: 0,
-              textAlign: "center",
+              bottom: -6,
+              display: "flex",
+              justifyContent: "center",
               opacity: badgeP,
+              transform: `scale(${0.85 + badgeP * 0.15})`,
             }}
           >
-            <span
+            <div
               style={{
-                display: "inline-block",
-                background: theme.ssr,
-                color: "#fff",
-                fontWeight: 800,
-                fontSize: 24,
-                padding: "8px 18px",
-                borderRadius: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                background: "rgba(12,14,34,0.85)",
+                border: "2px solid rgba(255,255,255,0.2)",
+                padding: "10px 22px",
+                borderRadius: 12,
+                boxShadow: "0 8px 20px rgba(0,0,0,0.45)",
               }}
             >
-              {`SSR → UR (${conversion})`}
-            </span>
+              <RarityWord rarity="SSR" size={26} />
+              <span style={{ color: "#fff", fontSize: 26, fontWeight: 900 }}>{"→"}</span>
+              <RarityWord rarity="UR" size={26} />
+              <span
+                style={{
+                  color: theme.star,
+                  fontSize: 24,
+                  fontWeight: 900,
+                  textShadow: darkOutline(1),
+                }}
+              >
+                {conversion}
+              </span>
+            </div>
           </div>
         ) : null}
 
@@ -151,14 +178,16 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
           <div
             style={{
               position: "absolute",
-              right: 90,
-              top: 20,
-              background: theme.medal,
-              color: "#fff",
-              fontWeight: 800,
+              right: 70,
+              top: 16,
+              background: `linear-gradient(180deg, ${theme.urGoldLight}, ${theme.urGold})`,
+              color: theme.outline,
+              fontWeight: 900,
               fontSize: 22,
               padding: "8px 16px",
               borderRadius: 10,
+              border: "2px solid rgba(255,255,255,0.6)",
+              boxShadow: "0 6px 14px rgba(0,0,0,0.4)",
               opacity: beatOpacity,
               transform: `scale(${0.8 + beatOpacity * 0.2})`,
             }}

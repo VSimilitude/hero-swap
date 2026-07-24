@@ -14,11 +14,11 @@ export const SwapChainVideo: React.FC<VideoProps> = ({ plan, caneMode }) => {
   const scenes = planScenes(plan);
 
   if (scenes.length === 0) {
-    return <AbsoluteFill style={{ background: theme.bg }} />;
+    return <AbsoluteFill style={{ background: theme.bgBottom }} />;
   }
 
   return (
-    <AbsoluteFill style={{ background: theme.bg }}>
+    <AbsoluteFill style={{ background: theme.bgBottom }}>
       <Series>
         {scenes.map((scene, i) => {
           let node: React.ReactNode = null;

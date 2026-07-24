@@ -16,10 +16,10 @@ export const RebuildScene: React.FC<Props> = ({ hero, caneMode }) => {
   const { fps } = useVideoConfig();
 
   const grow = spring({
-    frame: frame - 20,
+    frame: frame - 44,
     fps,
     config: { damping: 200 },
-    durationInFrames: 55,
+    durationInFrames: 80,
   });
   const stars = Math.round(interpolate(grow, [0, 1], [3, 5]));
 
@@ -29,20 +29,20 @@ export const RebuildScene: React.FC<Props> = ({ hero, caneMode }) => {
 
   return (
     <Stage>
-      <div style={{ position: "relative", width: 500, height: 400 }}>
-        <div style={{ position: "absolute", left: 120, top: 40 }}>
+      <div style={{ position: "relative", width: 520, height: 400 }}>
+        <div style={{ position: "absolute", left: 128, top: 40 }}>
           <HeroCard name={hero} stars={stars} rarity="UR" highlight />
         </div>
-        {/* shards consumed into the hero */}
-        {Array.from({ length: 5 }).map((_, i) => {
-          const start = 6 + i * 4;
-          const p = interpolate(frame, [start, start + 30], [0, 1], {
+        {/* shards spiralling in and consumed into the hero */}
+        {Array.from({ length: 8 }).map((_, i) => {
+          const start = 10 + i * 7;
+          const p = interpolate(frame, [start, start + 50], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           });
-          const angle = (i / 5) * Math.PI * 2;
-          const x = interpolate(p, [0, 1], [250 + Math.cos(angle) * 200, 250]);
-          const y = interpolate(p, [0, 1], [180 + Math.sin(angle) * 140, 180]);
+          const angle = (i / 8) * Math.PI * 2;
+          const x = interpolate(p, [0, 1], [260 + Math.cos(angle) * 230, 260]);
+          const y = interpolate(p, [0, 1], [190 + Math.sin(angle) * 160, 190]);
           return (
             <div
               key={i}
@@ -52,9 +52,12 @@ export const RebuildScene: React.FC<Props> = ({ hero, caneMode }) => {
                 top: y,
                 width: 26,
                 height: 26,
-                borderRadius: 6,
+                borderRadius: 7,
                 background: theme.shard,
-                opacity: p < 1 ? 1 - p * 0.3 : 0,
+                border: "2px solid rgba(255,255,255,0.5)",
+                boxShadow: `0 0 12px ${theme.shard}`,
+                opacity: p < 1 ? 1 - p * 0.25 : 0,
+                transform: `scale(${1 - p * 0.4})`,
               }}
             />
           );
