@@ -14,6 +14,39 @@ const PURPLE_OFF: [number, number][] = [
 ];
 const GOLD_OFF: [number, number][] = [[-30, -4], [0, -12], [30, -4]];
 
+const clampBoth = {
+  extrapolateLeft: "clamp" as const,
+  extrapolateRight: "clamp" as const,
+};
+
+// Star-row geometry (container-local coords). Each HeroCard's 5-star fan sits
+// near the card bottom; these place the individual star centres so a flying
+// star can leave a slot on the right card and land in a slot on the left.
+const STAR_Y = 333;
+const STAR_STEP = 31;
+const LEFT_STAR_X0 = 110; // centre of the left card's first star
+const RIGHT_STAR_X0 = 745; // centre of the right card's first star
+const leftStarX = (i: number) => LEFT_STAR_X0 + STAR_STEP * i;
+const rightStarX = (i: number) => RIGHT_STAR_X0 + STAR_STEP * i;
+
+// The carrier gains its 4th and 5th stars; the target loses the same two. Each
+// gold star physically crosses from a right slot to the matching left slot,
+// arcing up over the swap arrow. Depart/arrive frames sync with the star-count
+// steps below so a slot greys exactly as its star lifts off, and turns gold
+// exactly as one lands.
+const STAR_FLIGHTS = [
+  { depart: 88, arrive: 118, fromIdx: 4, toIdx: 3 },
+  { depart: 110, arrive: 140, fromIdx: 3, toIdx: 4 },
+];
+
+// Excess skill medals fly from the right card up to the mailbox.
+const MEDAL_BASE = 128;
+const MEDAL_STAGGER = 9;
+const MEDAL_TRAVEL = 30;
+const MEDAL_COUNT = 6;
+const MEDAL_SRC = { x: 808, y: 190 }; // right card, upper area
+const MAILBOX_PT = { x: 908, y: -23 }; // centre of the mailbox element
+
 type Props = {
   event: SwapEvent;
   maxHero: string | null;
@@ -43,8 +76,10 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
     config: { damping: 200 },
     durationInFrames: 84,
   });
-  const carrierStars = Math.round(interpolate(swapP, [0, 1], [3, 5]));
-  const targetStars = Math.round(interpolate(swapP, [0, 1], [5, 3]));
+  // Star counts step in lock-step with the flying stars: the carrier's slot
+  // turns gold as a star lands, the target's greys as one lifts off.
+  const carrierStars = 3 + (frame >= 118 ? 1 : 0) + (frame >= 140 ? 1 : 0);
+  const targetStars = 5 - (frame >= 88 ? 1 : 0) - (frame >= 110 ? 1 : 0);
 
   // Shard cluster glides left→right during the swap.
   const packetX = interpolate(swapP, [0, 1], [330, 636]);
@@ -226,6 +261,82 @@ export const SwapScene: React.FC<Props> = ({ event, maxHero, caneMode }) => {
             </div>
           </div>
         ) : null}
+
+        {/* gold stars physically cross from the right card to the left card */}
+        {STAR_FLIGHTS.map((f, i) => {
+          const p = interpolate(frame, [f.depart, f.arrive], [0, 1], clampBoth);
+          if (p <= 0 || p >= 1) return null;
+          const x = interpolate(p, [0, 1], [rightStarX(f.fromIdx), leftStarX(f.toIdx)]);
+          const y = STAR_Y - Math.sin(p * Math.PI) * 95;
+          const scale = 1 + Math.sin(p * Math.PI) * 0.5;
+          const op = interpolate(p, [0, 0.12, 0.88, 1], [0, 1, 1, 0], clampBoth);
+          return (
+            <span
+              key={`star-${i}`}
+              style={{
+                position: "absolute",
+                left: x - 16,
+                top: y - 20,
+                fontSize: 32,
+                lineHeight: 1,
+                color: theme.star,
+                opacity: op,
+                transform: `scale(${scale})`,
+                textShadow: "0 0 12px rgba(255,207,58,0.95), 0 2px 3px rgba(0,0,0,0.6)",
+              }}
+            >
+              {"★"}
+            </span>
+          );
+        })}
+
+        {/* mailbox: excess skill medals return here during the swap */}
+        <div
+          style={{
+            position: "absolute",
+            right: 24,
+            top: -58,
+            width: 96,
+            height: 70,
+            borderRadius: 12,
+            background: `linear-gradient(180deg, ${theme.cyan}, ${theme.cyanDark})`,
+            border: "2px solid rgba(255,255,255,0.6)",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 14,
+            fontWeight: 900,
+            letterSpacing: 0.5,
+            textShadow: darkOutline(1),
+            boxShadow: "0 6px 14px rgba(0,0,0,0.4)",
+            opacity: interpolate(frame, [112, 130], [0, 1], clampBoth),
+          }}
+        >
+          MAILBOX
+        </div>
+
+        {/* excess skill medals fly from the right card up to the mailbox */}
+        {Array.from({ length: MEDAL_COUNT }).map((_, i) => {
+          const start = MEDAL_BASE + i * MEDAL_STAGGER;
+          const p = interpolate(frame, [start, start + MEDAL_TRAVEL], [0, 1], clampBoth);
+          if (p <= 0 || p >= 1) return null;
+          const sx = MEDAL_SRC.x + ((i % 3) - 1) * 26;
+          const sy = MEDAL_SRC.y + (i % 2) * 22;
+          const x = interpolate(p, [0, 1], [sx, MAILBOX_PT.x + ((i % 3) - 1) * 6]) - 15;
+          const y =
+            interpolate(p, [0, 1], [sy, MAILBOX_PT.y]) - Math.sin(p * Math.PI) * 40 - 18;
+          const opacity = interpolate(p, [0, 0.12, 0.85, 1], [0, 1, 1, 0], clampBoth);
+          const scale = interpolate(p, [0, 1], [1, 0.7]);
+          return (
+            <div
+              key={`medal-${i}`}
+              style={{ position: "absolute", left: x, top: y, opacity, transform: `scale(${scale})` }}
+            >
+              <MedalIcon size={30} />
+            </div>
+          );
+        })}
 
         {/* medals-maxed beat tag */}
         {maxHero ? (
