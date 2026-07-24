@@ -1,8 +1,9 @@
+import json
 import re
 from html import escape
 
-from pyscript import document, when
-from hero_swap_poc import generate_guide
+from pyscript import document, window, when
+from hero_swap_poc import build_plan, generate_guide
 
 
 def parse_csv(value):
@@ -24,6 +25,26 @@ def markup_to_html(text):
     return "\n".join(lines)
 
 
+def update_video(container, plan, cane):
+    """Mount (or hide) the animated walkthrough. Degrades silently if the
+    bundle failed to load or there is nothing to animate."""
+    has_bundle = hasattr(window, "HeroSwapVideo")
+
+    if plan["error"] or not plan["events"]:
+        container.hidden = True
+        if has_bundle:
+            window.HeroSwapVideo.unmount(container)
+        return
+
+    if not has_bundle:
+        # Text-only fallback: the bundle isn't available.
+        container.hidden = True
+        return
+
+    window.HeroSwapVideo.mount(container, json.dumps(plan), cane)
+    container.hidden = False
+
+
 @when("submit", "#guide-form")
 def on_submit(event):
     event.preventDefault()
@@ -33,6 +54,7 @@ def on_submit(event):
     top_ew = parse_csv(document.querySelector("#top-ew-heroes").value)
     pause = document.querySelector("#pause-after-first").checked
     cane = document.querySelector("#cane-mode").checked
+    show_video = document.querySelector("#show-video").checked
 
     guide_text = generate_guide(
         swap_tokens, retiring, top_ew,
@@ -44,3 +66,14 @@ def on_submit(event):
 
     container = document.querySelector("#output-container")
     container.hidden = False
+
+    video_container = document.querySelector("#video-container")
+    if show_video:
+        plan = build_plan(
+            swap_tokens, retiring, top_ew, pause_after_first=pause,
+        )
+        update_video(video_container, plan, cane)
+    else:
+        video_container.hidden = True
+        if hasattr(window, "HeroSwapVideo"):
+            window.HeroSwapVideo.unmount(video_container)

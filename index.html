@@ -35,6 +35,12 @@
             <label for="cane-mode">Cane-mode</label>
         </div>
 
+        <div class="checkbox-row">
+            <input type="checkbox" id="show-video">
+            <label for="show-video">Show animated walkthrough</label>
+        </div>
+        <p class="input-hint">Plays a short visual step-through of the same guide, animated in your browser.</p>
+
         <button type="submit" id="generate-btn">Generate Guide</button>
     </form>
 
@@ -43,6 +49,9 @@
         <pre id="guide-output"></pre>
     </div>
 
+    <div id="video-container" hidden></div>
+
+    <script src="assets/swap-video.bundle.js" defer></script>
     <script type="py" src="main.py" config='{"files": {"./hero_swap_poc.py": "./hero_swap_poc.py"}}'></script>
 </body>
 </html>

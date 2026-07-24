@@ -52,6 +52,90 @@ GLOBAL_NOTE = (
 )
  
  
+def build_plan(
+    swap_tokens: int,
+    retiring_heroes: List[str] = None,
+    top_ew_heroes: List[str] = None,
+    pause_after_first: bool = False,
+) -> dict:
+    """
+    Build a structured, ordered plan for the swap chain.
+
+    This is the single source of truth: both generate_guide() and the animated
+    video walkthrough render from the event list this returns. Every key is
+    always present; when `error` is set the other fields are empty.
+    """
+    retiring_heroes = retiring_heroes or []
+    top_ew_heroes = top_ew_heroes or []
+
+    plan: dict = {
+        "error": None,
+        "swap_tokens": None,
+        "targets": [],
+        "dropped": [],
+        "chain": [],
+        "events": [],
+    }
+
+    if not isinstance(swap_tokens, int) or isinstance(swap_tokens, bool):
+        plan["error"] = "swap_tokens must be a whole number (got a non-integer)."
+        return plan
+    if swap_tokens < 0:
+        plan["error"] = "swap_tokens cannot be negative."
+        return plan
+
+    plan["swap_tokens"] = swap_tokens
+
+    # ---- Case A: no swaps -------------------------------------------------
+    if swap_tokens == 0:
+        plan["chain"] = ["Sarah"]
+        plan["events"] = [
+            {"type": "prep", "hero": "Sarah"},
+            {"type": "promote", "hero": "Sarah"},
+            {"type": "pickup"},
+        ]
+        return plan
+
+    # ---- Case B: one or more swaps ---------------------------------------
+    targets, dropped = build_targets(swap_tokens, retiring_heroes, top_ew_heroes)
+    plan["targets"] = targets
+    plan["dropped"] = dropped
+
+    if not targets:
+        # Tokens but no named heroes: nothing to animate.
+        return plan
+
+    plan["chain"] = ["Sarah"] + targets
+
+    events: List[dict] = [
+        {"type": "prep", "hero": "Sarah"},
+        {"type": "promote", "hero": "Sarah"},
+        {"type": "pickup"},
+    ]
+
+    carrier = "Sarah"
+    for i, target in enumerate(targets):
+        first = i == 0
+        events.append({"type": "max_medals", "hero": target})
+        events.append({
+            "type": "swap",
+            "carrier": carrier,
+            "target": target,
+            "first": first,
+            "conversion": "2:1" if first else "1:1",
+        })
+        carrier = target
+
+        if pause_after_first and first and len(targets) > 1:
+            events.append({"type": "pause", "remaining": len(targets) - 1})
+
+    events.append({"type": "rebuild", "hero": carrier})
+    events.append({"type": "apply_medals", "sources": ["Sarah"] + targets})
+
+    plan["events"] = events
+    return plan
+
+
 def generate_guide(
     swap_tokens: int,
     retiring_heroes: List[str] = None,
@@ -68,10 +152,23 @@ def generate_guide(
     if swap_tokens < 0:
         return "Error: swap_tokens cannot be negative."
 
+    plan = build_plan(
+        swap_tokens, retiring_heroes, top_ew_heroes, pause_after_first,
+    )
+
     if cane_mode:
         return _generate_guide_cane(
             swap_tokens, retiring_heroes, top_ew_heroes, pause_after_first,
         )
+
+    return _render_guide(plan)
+
+
+def _render_guide(plan: dict) -> str:
+    """Render the standard guide text from a plan (byte-identical output)."""
+    swap_tokens = plan["swap_tokens"]
+    targets = plan["targets"]
+    zero = swap_tokens == 0
 
     lines: List[str] = [GLOBAL_NOTE, ""]
     n = 1  # running step number
@@ -81,103 +178,111 @@ def generate_guide(
         lines.append(f"{n}. {text}")
         n += 1
 
-    # ---- Case A: no swaps -------------------------------------------------
-    if swap_tokens == 0:
+    # ---- Header ----------------------------------------------------------
+    if zero:
         lines.append("You have 0 swap tokens — promotion-only sequence:")
         lines.append("")
-        step(
-            "**Prep Sarah: max her skill medals and shards before promotion.** "
-            "(Precondition: Sarah needs 150+ Wall-of-Honor levels so enough "
-            "shards are returned to rebuild her to 5 stars afterward.)"
-        )
-        step(
-            "**Promote Sarah to UR.** She becomes a 3-star UR hero; all skill "
-            "medals and most shards are returned to your mailbox."
-        )
-        step(
-            "**Pick up the returned medals + shards.** Apply the skill medals "
-            "to any heroes for VS points, and use the returned SSR shards to "
-            "rebuild Sarah back to 5 stars."
-        )
-        return "\n".join(lines)
-
-    # ---- Case B: one or more swaps ---------------------------------------
-    targets, dropped = build_targets(swap_tokens, retiring_heroes, top_ew_heroes)
-
-    if not targets:
+    elif not targets:
         lines.append(
             f"You have {swap_tokens} swap token(s) but named no heroes. "
             "Add heroes to retiring_heroes and/or top_ew_heroes to build the "
             "chain."
         )
         return "\n".join(lines)
+    else:
+        chain = " -> ".join(plan["chain"])
+        lines.append(f"Swap chain ({len(targets)} swap(s)): {chain}")
+        lines.append("")
 
-    chain = " -> ".join(["Sarah"] + targets)
-    lines.append(f"Swap chain ({len(targets)} swap(s)): {chain}")
-    lines.append("")
-
-    # Fixed opening
-    step(
-        "**Prep Sarah: max her skill medals before promotion.** "
-        "(Precondition: Sarah needs 150+ Wall-of-Honor levels so enough "
-        "shards are returned to rebuild a hero to 5 stars later.)"
-    )
-    step(
-        "**Promote Sarah to UR.** She becomes a 3-star UR hero; medals + "
-        "shards are returned to your mailbox."
-    )
-    step(
-        "**Pick up the returned medals + shards together — BEFORE any "
-        "swap** — so the shards sit on Sarah and participate in the "
-        "conversion."
-    )
-
-    # Unrolled swaps
-    carrier = "Sarah"
-    for i, target in enumerate(targets):
-        first = i == 0
-        conv = (
-            "Sarah's SSR shards convert to UR shards (SSR -> UR, 2:1)"
-            if first
-            else "the shards transfer unchanged (UR -> UR, 1:1)"
-        )
-        step(f"**Max {target}'s skill medals** before swapping.")
-        step(
-            f"**Swap {carrier} (3-star) with {target} (5-star):** "
-            f"{carrier} rises to 5 stars (done); {target} drops to 3 stars, "
-            f"inherits the shards — {conv} — and returns its excess skill "
-            f"medals to your mailbox."
-        )
-        carrier = target
-
-        if pause_after_first and first and len(targets) > 1:
+    last_target = ""
+    for ev in plan["events"]:
+        kind = ev["type"]
+        if kind == "prep":
+            if zero:
+                step(
+                    "**Prep Sarah: max her skill medals and shards before "
+                    "promotion.** (Precondition: Sarah needs 150+ Wall-of-Honor "
+                    "levels so enough shards are returned to rebuild her to 5 "
+                    "stars afterward.)"
+                )
+            else:
+                step(
+                    "**Prep Sarah: max her skill medals before promotion.** "
+                    "(Precondition: Sarah needs 150+ Wall-of-Honor levels so "
+                    "enough shards are returned to rebuild a hero to 5 stars "
+                    "later.)"
+                )
+        elif kind == "promote":
+            if zero:
+                step(
+                    "**Promote Sarah to UR.** She becomes a 3-star UR hero; all "
+                    "skill medals and most shards are returned to your mailbox."
+                )
+            else:
+                step(
+                    "**Promote Sarah to UR.** She becomes a 3-star UR hero; "
+                    "medals + shards are returned to your mailbox."
+                )
+        elif kind == "pickup":
+            if zero:
+                step(
+                    "**Pick up the returned medals + shards.** Apply the skill "
+                    "medals to any heroes for VS points, and use the returned "
+                    "SSR shards to rebuild Sarah back to 5 stars."
+                )
+            else:
+                step(
+                    "**Pick up the returned medals + shards together — BEFORE "
+                    "any swap** — so the shards sit on Sarah and participate in "
+                    "the conversion."
+                )
+        elif kind == "max_medals":
+            step(f"**Max {ev['hero']}'s skill medals** before swapping.")
+        elif kind == "swap":
+            carrier = ev["carrier"]
+            target = ev["target"]
+            last_target = target
+            conv = (
+                "Sarah's SSR shards convert to UR shards (SSR -> UR, 2:1)"
+                if ev["first"]
+                else "the shards transfer unchanged (UR -> UR, 1:1)"
+            )
+            step(
+                f"**Swap {carrier} (3-star) with {target} (5-star):** "
+                f"{carrier} rises to 5 stars (done); {target} drops to 3 stars, "
+                f"inherits the shards — {conv} — and returns its excess skill "
+                f"medals to your mailbox."
+            )
+        elif kind == "pause":
             lines.append("")
             lines.append(
                 f"**--- PAUSE --- Sarah is now UR and 5-star.** "
-                f"{target} is 3-star and holding the shards. "
+                f"{last_target} is 3-star and holding the shards. "
                 f"You can stop here and save the remaining "
-                f"{len(targets) - 1} swap(s) for a future week when you "
+                f"{ev['remaining']} swap(s) for a future week when you "
                 f"need VS points. When ready, continue below:"
             )
             lines.append("")
+        elif kind == "rebuild":
+            carrier = ev["hero"]
+            step(
+                f"**Rebuild {carrier}:** he/she is still 3 stars and holds all "
+                f"the inherited UR shards — use them to bring {carrier} back to "
+                f"5 stars."
+            )
+        elif kind == "apply_medals":
+            applied_from = ", ".join(ev["sources"])
+            step(
+                f"**Apply all remaining returned skill medals** (from "
+                f"{applied_from}) to any heroes you like for VS points."
+            )
 
-    # Fixed closing
-    step(
-        f"**Rebuild {carrier}:** he/she is still 3 stars and holds all the "
-        f"inherited UR shards — use them to bring {carrier} back to 5 stars."
-    )
-    applied_from = ", ".join(["Sarah"] + targets)
-    step(
-        f"**Apply all remaining returned skill medals** (from "
-        f"{applied_from}) to any heroes you like for VS points."
-    )
-
-    if dropped:
+    if plan["dropped"]:
         lines.append("")
         lines.append(
             "Heads up: these named heroes did not fit your "
             f"{swap_tokens}-token budget and were not used: "
-            f"{', '.join(dropped)}."
+            f"{', '.join(plan['dropped'])}."
         )
 
     return "\n".join(lines)
@@ -198,6 +303,18 @@ def _generate_guide_cane(
     top_ew_heroes: List[str],
     pause_after_first: bool = False,
 ) -> str:
+    plan = build_plan(
+        swap_tokens, retiring_heroes, top_ew_heroes, pause_after_first,
+    )
+    return _render_guide_cane(plan)
+
+
+def _render_guide_cane(plan: dict) -> str:
+    """Render the Cane-mode guide text from a plan (byte-identical output)."""
+    swap_tokens = plan["swap_tokens"]
+    targets = plan["targets"]
+    zero = swap_tokens == 0
+
     lines: List[str] = [_CANE_GLOBAL_NOTE, ""]
     n = 1
 
@@ -206,44 +323,46 @@ def _generate_guide_cane(
         lines.append(f"{n}. {text}")
         n += 1
 
-    if swap_tokens == 0:
-        step("**Max Sarah's skill medals and shards!**")
-        step("**PROMOTE Sarah to UR!** BOOM!")
-        step("**Open mailbox, grab everything!** Put medals on whoever you want!")
-        return "\n".join(lines)
-
-    targets, dropped = build_targets(swap_tokens, retiring_heroes, top_ew_heroes)
-
-    if not targets:
+    if not zero and not targets:
         lines.append("You didn't tell me any hero names, silly!")
         return "\n".join(lines)
 
-    chain = " -> ".join(["Sarah"] + targets)
-    lines.append(f"Swap chain: {chain}")
-    lines.append("")
+    if not zero:
+        chain = " -> ".join(plan["chain"])
+        lines.append(f"Swap chain: {chain}")
+        lines.append("")
 
-    step("**Max Sarah's skill medals!** (150+ Wall-of-Honor first!)")
-    step("**PROMOTE Sarah to UR!** BOOM!")
-    step("**Open mailbox, grab EVERYTHING!** Don't swap yet!")
-
-    carrier = "Sarah"
-    for i, target in enumerate(targets):
-        step(f"**Max {target}'s skill medals!**")
-        step(f"**SWAP {carrier} with {target}!** WHOOOOSH!")
-        carrier = target
-
-        if pause_after_first and i == 0 and len(targets) > 1:
+    for ev in plan["events"]:
+        kind = ev["type"]
+        if kind == "prep":
+            if zero:
+                step("**Max Sarah's skill medals and shards!**")
+            else:
+                step("**Max Sarah's skill medals!** (150+ Wall-of-Honor first!)")
+        elif kind == "promote":
+            step("**PROMOTE Sarah to UR!** BOOM!")
+        elif kind == "pickup":
+            if zero:
+                step("**Open mailbox, grab everything!** Put medals on whoever you want!")
+            else:
+                step("**Open mailbox, grab EVERYTHING!** Don't swap yet!")
+        elif kind == "max_medals":
+            step(f"**Max {ev['hero']}'s skill medals!**")
+        elif kind == "swap":
+            step(f"**SWAP {ev['carrier']} with {ev['target']}!** WHOOOOSH!")
+        elif kind == "pause":
             lines.append("")
             lines.append("--- PAUSE --- You can stop here and save the rest for later!")
             lines.append("")
+        elif kind == "rebuild":
+            step(f"**Build {ev['hero']} back to 5 stars!**")
+        elif kind == "apply_medals":
+            step("**Put ALL leftover medals on your favorites!** POINTS POINTS POINTS!")
 
-    step(f"**Build {carrier} back to 5 stars!**")
-    step("**Put ALL leftover medals on your favorites!** POINTS POINTS POINTS!")
-
-    if dropped:
+    if plan["dropped"]:
         lines.append("")
         lines.append(
-            f"Sorry {', '.join(dropped)} — not enough tokens, maybe next time!"
+            f"Sorry {', '.join(plan['dropped'])} — not enough tokens, maybe next time!"
         )
 
     return "\n".join(lines)
@@ -311,7 +430,75 @@ def _self_test() -> None:
     targets, dropped = build_targets(2, ["Murphy", "Gordon"], ["Gordon", "Kim"])
     assert targets == ["Murphy", "Gordon"]
     assert dropped == ["Kim"]
- 
+
+    # ---- build_plan: worked example --------------------------------------
+    plan = build_plan(2, ["Murphy"], ["Gordon"])
+    assert plan["error"] is None
+    assert plan["swap_tokens"] == 2
+    assert plan["targets"] == ["Murphy", "Gordon"]
+    assert plan["dropped"] == []
+    assert plan["chain"] == ["Sarah", "Murphy", "Gordon"]
+    assert [e["type"] for e in plan["events"]] == [
+        "prep", "promote", "pickup",
+        "max_medals", "swap",
+        "max_medals", "swap",
+        "rebuild", "apply_medals",
+    ]
+    swaps = [e for e in plan["events"] if e["type"] == "swap"]
+    assert swaps[0] == {
+        "type": "swap", "carrier": "Sarah", "target": "Murphy",
+        "first": True, "conversion": "2:1",
+    }
+    assert swaps[1] == {
+        "type": "swap", "carrier": "Murphy", "target": "Gordon",
+        "first": False, "conversion": "1:1",
+    }
+    assert plan["events"][-1] == {
+        "type": "apply_medals", "sources": ["Sarah", "Murphy", "Gordon"],
+    }
+
+    # dropped heroes surface in the plan
+    plan_dropped = build_plan(2, ["Murphy", "Gordon"], ["Gordon", "Kim"])
+    assert plan_dropped["dropped"] == ["Kim"]
+
+    # ---- build_plan: 0-token case ----------------------------------------
+    plan0 = build_plan(0)
+    assert plan0["error"] is None
+    assert plan0["targets"] == []
+    assert plan0["chain"] == ["Sarah"]
+    assert [e["type"] for e in plan0["events"]] == ["prep", "promote", "pickup"]
+
+    # ---- build_plan: tokens but no named heroes --------------------------
+    plan_empty = build_plan(2)
+    assert plan_empty["error"] is None
+    assert plan_empty["targets"] == []
+    assert plan_empty["events"] == []
+
+    # ---- build_plan: error cases -----------------------------------------
+    plan_neg = build_plan(-1)
+    assert plan_neg["error"] == "swap_tokens cannot be negative."
+    assert plan_neg["events"] == []
+    plan_bad = build_plan("2")
+    assert plan_bad["error"] == "swap_tokens must be a whole number (got a non-integer)."
+    assert plan_bad["events"] == []
+    plan_bool = build_plan(True)
+    assert plan_bool["error"] == "swap_tokens must be a whole number (got a non-integer)."
+
+    # ---- build_plan: pause event placement -------------------------------
+    plan_pause = build_plan(2, ["Murphy"], ["Gordon"], pause_after_first=True)
+    types = [e["type"] for e in plan_pause["events"]]
+    assert types == [
+        "prep", "promote", "pickup",
+        "max_medals", "swap", "pause",
+        "max_medals", "swap",
+        "rebuild", "apply_medals",
+    ]
+    pause_ev = [e for e in plan_pause["events"] if e["type"] == "pause"][0]
+    assert pause_ev == {"type": "pause", "remaining": 1}
+    # single swap: no pause even when requested
+    plan_one = build_plan(1, ["Murphy"], pause_after_first=True)
+    assert not any(e["type"] == "pause" for e in plan_one["events"])
+
     print("self-test: OK")
  
  

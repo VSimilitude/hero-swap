@@ -83,3 +83,7 @@ button:hover {
     color: #1e40af;
     font-weight: 700;
 }
+
+#video-container {
+    margin-top: 1rem;
+}

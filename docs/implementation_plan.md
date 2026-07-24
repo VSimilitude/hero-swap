@@ -37,10 +37,13 @@ See `docs/hero_swap_poc_spec.md` for full spec and worked examples.
 ## File Structure
 ```
 hero_swap/
-├── index.html              # Page shell, loads PyScript + main.py
+├── index.html              # Page shell, loads PyScript + main.py + video bundle
 ├── style.css               # Styling
 ├── main.py                 # Web UI: input handling, display (PyScript)
-├── hero_swap_poc.py        # Guide generation logic (pure Python)
+├── hero_swap_poc.py        # Guide + plan generation logic (pure Python)
+├── assets/
+│   └── swap-video.bundle.js  # Committed Remotion Player bundle (built artifact)
+├── video/                  # Remotion source for the walkthrough (build-time only)
 └── docs/
     ├── game_mechanics.md
     ├── hero_swap_poc_spec.md
@@ -53,6 +56,30 @@ hero_swap/
 3. Wire form submission to guide generation and display
 4. Style the output for readability
 5. Test locally, then set up GitHub Pages deployment
+
+## Video walkthrough
+
+An optional animated walkthrough plays the swap chain in the browser using
+`@remotion/player`. It is driven by the **same inputs** as the text guide:
+`hero_swap_poc.build_plan()` produces a structured event list (the single source
+of truth that `generate_guide()` also renders from), `main.py` serialises it with
+`json.dumps`, and `window.HeroSwapVideo.mount(container, planJson, caneMode)`
+renders the Player. Tick "Show animated walkthrough" on the form to enable it;
+if the bundle is missing the page degrades silently to text-only.
+
+- **Source:** `video/` — a Remotion 4.x + React 18 + TypeScript project. Scenes
+  live in `video/src/scenes/`; `video/src/plan.ts` mirrors the Python plan shape.
+- **Bundle:** `assets/swap-video.bundle.js` is a self-contained, minified IIFE
+  built by esbuild. **It is committed on purpose** so the deployed site stays
+  fully static (PyScript + plain files, no Node at runtime). No network requests,
+  fonts, or images are loaded at page runtime.
+- **Rebuild after changing anything in `video/`:**
+  ```
+  cd video && npm install && npm run build
+  ```
+  This regenerates `assets/swap-video.bundle.js`; commit the updated bundle.
+  `npm run typecheck` checks types; `npm run studio` opens the Remotion studio
+  for iterating on animations. `video/node_modules/` is gitignored.
 
 ## Future Enhancements (not v1)
 - More inputs (hero levels, medal counts, shard counts)
