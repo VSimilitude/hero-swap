@@ -1,5 +1,9 @@
 # Animated Video Walkthrough — Implementation Plan (Remotion Player)
 
+> **Update (2026-07):** the walkthrough is no longer opt-in. The "Show animated
+> walkthrough" and "Voiceover" checkboxes were removed — the narrated video
+> renders on every guide submission. This historical plan predates that change.
+
 ## Goal
 
 Add an optional animated video walkthrough of the swap chain, rendered **live in

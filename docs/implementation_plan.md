@@ -69,13 +69,14 @@ hero_swap/
 
 ## Video walkthrough
 
-An optional animated walkthrough plays the swap chain in the browser using
+A narrated animated walkthrough plays the swap chain in the browser using
 `@remotion/player`. It is driven by the **same inputs** as the text guide:
 `hero_swap_poc.build_plan()` produces a structured event list (the single source
 of truth that `generate_guide()` also renders from), `main.py` serialises it with
-`json.dumps`, and `window.HeroSwapVideo.mount(container, planJson, caneMode)`
-renders the Player. Tick "Show animated walkthrough" on the form to enable it;
-if the bundle is missing the page degrades silently to text-only.
+`json.dumps`, and `window.HeroSwapVideo.mount(container, planJson, caneMode, true)`
+renders the Player. The walkthrough (with voiceover) renders on **every** guide
+submission — there are no "Show animated walkthrough" / "Voiceover" toggles. If
+the bundle is missing the page degrades silently to text-only.
 
 - **Source:** `video/` — a Remotion 4.x + React 18 + TypeScript project. Scenes
   live in `video/src/scenes/`; `video/src/plan.ts` mirrors the Python plan shape.
@@ -83,11 +84,12 @@ if the bundle is missing the page degrades silently to text-only.
   built by esbuild. **It is committed on purpose** so the deployed site stays
   fully static (PyScript + plain files, no Node at runtime). No network requests,
   fonts, or images are loaded at page runtime.
-- **Optional voiceover (pre-baked):** ticking the "Voiceover" checkbox mounts a
-  narrator voice over the walkthrough. The narration is **generic and
-  hero-name-free** (only Sarah is named; everyone else is "the next hero" / "the
-  last hero" — the visuals show who's who), so it can be generated **once at
-  build time** rather than per-input in the browser. There are 16 short clips
+- **Voiceover (pre-baked, always on):** the walkthrough always mounts a narrator
+  voice. The narration is **generic and hero-name-free** (only Sarah is named;
+  everyone else is "the next hero" / "the last hero" — the visuals show who's
+  who), so it can be generated **once at build time** rather than per-input in
+  the browser. Cane-mode uses a sillier, more theatrical read (voice `am_puck` @
+  speed 1.1). There are 16 short clips
   (one per scene type — intro, promote, pickup, first-swap 2:1, later-swap 1:1,
   pause, rebuild, finale — × normal/cane), shipped as small same-origin MP3s
   under `assets/narration/` (~600 KB total). At runtime `voiceoverFor(plan,

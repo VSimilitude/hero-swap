@@ -83,8 +83,6 @@ def on_submit(event):
     top_ew = read_field("top_ew", "#top-ew-heroes")
     pause = document.querySelector("#pause-after-first").checked
     cane = document.querySelector("#cane-mode").checked
-    show_video = document.querySelector("#show-video").checked
-    voiceover = document.querySelector("#voiceover").checked
 
     guide_text = generate_guide(
         swap_tokens, retiring, top_ew,
@@ -97,13 +95,10 @@ def on_submit(event):
     container = document.querySelector("#output-container")
     container.hidden = False
 
+    # The narrated walkthrough now renders on every submit (voiceover always on).
+    # update_video still degrades gracefully if the video bundle failed to load.
     video_container = document.querySelector("#video-container")
-    if show_video:
-        plan = build_plan(
-            swap_tokens, retiring, top_ew, pause_after_first=pause,
-        )
-        update_video(video_container, plan, cane, voiceover)
-    else:
-        video_container.hidden = True
-        if hasattr(window, "HeroSwapVideo"):
-            window.HeroSwapVideo.unmount(video_container)
+    plan = build_plan(
+        swap_tokens, retiring, top_ew, pause_after_first=pause,
+    )
+    update_video(video_container, plan, cane, voiceover=True)

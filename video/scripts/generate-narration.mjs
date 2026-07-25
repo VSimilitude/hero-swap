@@ -23,9 +23,15 @@ import path from "node:path";
 
 const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
-// Voice per mode. af_heart = clear default narrator; af_bella = more energetic
-// read for cane-mode's loud phrasing.
-const VOICES = { normal: "af_heart", cane: "af_bella" };
+// Voice + speed per mode.
+//   normal → af_heart: clear, warm narrator at natural pace.
+//   cane   → am_santa: jolly, deep, theatrical — picked by ear from the
+//            `--audition` set (over am_puck @1.1 and af_bella @1.15) despite
+//            its lower model-card grade; the roughness suits the silly read.
+const MODES = {
+  normal: { voice: "af_heart", speed: 1.0 },
+  cane: { voice: "am_santa", speed: 1.0 },
+};
 
 // One line per scene type. Hero-name-free — only Sarah (the fixed chain start)
 // is named; every other hero is "the next hero" / "the last hero", since the
@@ -50,19 +56,28 @@ const LINES = {
     finale:
       "Finally, apply every returned skill medal to your favorite heroes for maximum V S points.",
   },
+  // Cane-mode: loud, theatrical, silly — short and snappy, lots of exclamations
+  // and dramatic pauses. Keep the "U R" / "S S R" spellings.
   cane: {
-    intro: "Hero swap time! Let's promote Sarah and grab all the points!",
-    promote: "Promote Sarah to U R! Boom! She's three stars now!",
-    pickup: "Open the mailbox and grab everything! Don't lose those shards!",
+    intro: "HERO SWAP TIME! Are you READY?! Let's promote Sarah and grab ALL the points!",
+    promote: "PROMOTE Sarah to U R! KA-BOOM!! She's three stars now — WHOA!",
+    pickup: "Open that mailbox and GRAB everything! Don't you DARE lose those shards!",
     swap_first:
-      "First swap! Sarah trades with the next hero! Whooosh! S S R turns into U R!",
-    swap_later: "Swap again! Pass the shards down the line! Whooosh!",
-    pause: "Pause! You can stop right here and save the rest for later!",
-    rebuild: "Build the last hero back up to five stars!",
-    finale:
-      "Put all the leftover medals on your favorites! Points, points, points!",
+      "FIRST SWAP! Sarah trades places — WHOOSH!! S S R turns into U R! MAGIC!",
+    swap_later: "SWAP again! Send those shards zooming down the line — WHOOSH!!",
+    pause: "PAUSE!! Stop RIGHT here and save the rest for later. Sneaky, sneaky!",
+    rebuild: "Build that last hero back up to FIVE STARS! POW, POW, POW!",
+    finale: "Dump ALL the leftover medals on your favorites! POINTS! POINTS! POINTS!!",
   },
 };
+
+// Candidate voice/speed combos rendered by `--audition <dir>` for the
+// cane_swap_first line, so a human can pick the cane-mode voice by ear.
+const AUDITIONS = [
+  { voice: "am_santa", speed: 1.0 },
+  { voice: "am_puck", speed: 1.1 },
+  { voice: "af_bella", speed: 1.15 },
+];
 
 const HERE = import.meta.dirname;
 const OUT_DIR = path.resolve(HERE, "../../assets/narration");
@@ -139,71 +154,109 @@ function encodeWav16(samples, rate) {
   return buf;
 }
 
-async function main() {
+// Encode a Float32 mono buffer to <dir>/<base>.<ext> (mp3 via ffmpeg/lamejs, or
+// WAV fallback). Returns { outFile, size }.
+async function encodeClip(samples, rate, dir, base, encMode) {
+  if (encMode === "ffmpeg") {
+    const wavPath = path.join(dir, `${base}.wav`);
+    await writeFile(wavPath, encodeWav16(samples, rate));
+    const mp3Path = path.join(dir, `${base}.mp3`);
+    execFileSync("ffmpeg", ["-y", "-i", wavPath, "-ac", "1", "-b:a", "48k", mp3Path], {
+      stdio: "ignore",
+    });
+    await rm(wavPath);
+  } else if (encMode === "lamejs") {
+    await writeFile(path.join(dir, `${base}.mp3`), await encodeMp3Lame(samples, rate));
+  } else {
+    await writeFile(path.join(dir, `${base}.wav`), encodeWav16(samples, rate));
+  }
+  const outFile = `${base}.${encMode === "wav" ? "wav" : "mp3"}`;
+  const { size } = await import("node:fs").then((fs) =>
+    fs.promises.stat(path.join(dir, outFile)),
+  );
+  return { outFile, size };
+}
+
+async function detectEncoder() {
   const ffmpeg = hasFfmpeg();
-  // Probe lamejs availability once so we can report the chosen encoder.
   const lameOk =
     !ffmpeg && (await encodeMp3Lame(new Float32Array(1152), 24000)) !== null;
-  const encoder = ffmpeg ? "ffmpeg -> mp3" : lameOk ? "lamejs -> mp3" : "16-bit PCM WAV";
-  console.log(`Encoder: ${encoder}`);
+  return ffmpeg ? "ffmpeg" : lameOk ? "lamejs" : "wav";
+}
+
+async function loadTts() {
+  console.log(`Loading ${MODEL_ID} (q8 / cpu)…`);
+  return KokoroTTS.from_pretrained(MODEL_ID, { dtype: "q8", device: "cpu" });
+}
+
+// `--audition <dir>`: render the cane_swap_first line in each candidate
+// voice/speed combo to <dir>/audition_<voice>.mp3 (never touches assets/).
+async function runAudition(outDir) {
+  const encMode = await detectEncoder();
+  console.log(`Audition mode — encoder: ${encMode}`);
+  await mkdir(outDir, { recursive: true });
+  const tts = await loadTts();
+  const text = LINES.cane.swap_first;
+  console.log(`Line: ${JSON.stringify(text)}\n`);
+  for (const { voice, speed } of AUDITIONS) {
+    const audio = await tts.generate(text, { voice, speed });
+    const dur = audio.audio.length / audio.sampling_rate;
+    const { outFile, size } = await encodeClip(
+      audio.audio,
+      audio.sampling_rate,
+      outDir,
+      `audition_${voice}`,
+      encMode,
+    );
+    console.log(
+      `  ${voice.padEnd(10)} @${speed}  ${dur.toFixed(2)}s  ${(size / 1024).toFixed(0)} KB  -> ${path.join(outDir, outFile)}`,
+    );
+  }
+}
+
+async function main() {
+  const auditionFlag = process.argv.indexOf("--audition");
+  if (auditionFlag !== -1) {
+    const dir = process.argv[auditionFlag + 1];
+    if (!dir) {
+      console.error("Usage: node generate-narration.mjs --audition <outDir>");
+      process.exit(2);
+    }
+    return runAudition(path.resolve(dir));
+  }
+
+  const encMode = await detectEncoder();
+  console.log(`Encoder: ${encMode === "wav" ? "16-bit PCM WAV" : `${encMode} -> mp3`}`);
 
   await mkdir(OUT_DIR, { recursive: true });
-
-  console.log(`Loading ${MODEL_ID} (q8 / cpu)…`);
-  const tts = await KokoroTTS.from_pretrained(MODEL_ID, {
-    dtype: "q8",
-    device: "cpu",
-  });
+  const tts = await loadTts();
 
   const clips = {};
   let totalBytes = 0;
   let totalSeconds = 0;
 
   for (const mode of Object.keys(LINES)) {
-    const voice = VOICES[mode];
+    const { voice, speed } = MODES[mode];
     for (const [key, text] of Object.entries(LINES[mode])) {
       const clipKey = `${mode}_${key}`;
-      const audio = await tts.generate(text, { voice });
+      const audio = await tts.generate(text, { voice, speed });
       const rate = audio.sampling_rate;
       const durationSeconds =
         Math.round((audio.audio.length / rate) * 1000) / 1000;
 
-      let outFile;
-      if (ffmpeg) {
-        const wavPath = path.join(OUT_DIR, `${clipKey}.wav`);
-        await writeFile(wavPath, encodeWav16(audio.audio, rate));
-        const mp3Path = path.join(OUT_DIR, `${clipKey}.mp3`);
-        execFileSync(
-          "ffmpeg",
-          ["-y", "-i", wavPath, "-ac", "1", "-b:a", "48k", mp3Path],
-          { stdio: "ignore" },
-        );
-        await rm(wavPath);
-        outFile = `${clipKey}.mp3`;
-      } else if (lameOk) {
-        const mp3 = await encodeMp3Lame(audio.audio, rate);
-        await writeFile(path.join(OUT_DIR, `${clipKey}.mp3`), mp3);
-        outFile = `${clipKey}.mp3`;
-      } else {
-        await writeFile(
-          path.join(OUT_DIR, `${clipKey}.wav`),
-          encodeWav16(audio.audio, rate),
-        );
-        outFile = `${clipKey}.wav`;
-      }
-
-      const { size } = await import("node:fs").then((fs) =>
-        fs.promises.stat(path.join(OUT_DIR, outFile)),
+      const { outFile, size } = await encodeClip(
+        audio.audio,
+        rate,
+        OUT_DIR,
+        clipKey,
+        encMode,
       );
       totalBytes += size;
       totalSeconds += durationSeconds;
 
-      clips[clipKey] = {
-        file: `${REL_PREFIX}/${outFile}`,
-        durationSeconds,
-      };
+      clips[clipKey] = { file: `${REL_PREFIX}/${outFile}`, durationSeconds };
       console.log(
-        `  ${clipKey.padEnd(16)} ${durationSeconds.toFixed(2)}s  ${(size / 1024).toFixed(0)} KB  (${voice})`,
+        `  ${clipKey.padEnd(16)} ${durationSeconds.toFixed(2)}s  ${(size / 1024).toFixed(0)} KB  (${voice} @${speed})`,
       );
     }
   }
